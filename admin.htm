@@ -1,0 +1,101 @@
+<button id="manage-ts-types" title="Управление типами ТС">✎ Типы ТС</button>
+
+<!-- Модальное окно для управления -->
+<div id="ts-types-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+    <div style="background:white; width:90%; max-width:600px; margin:20px auto; padding:20px; border-radius:5px;">
+        <h3>Управление типами транспортных средств</h3>
+        <div id="ts-types-list"></div>
+        <button id="add-ts-type">+ Добавить тип</button>
+        <button id="save-ts-types">Сохранить изменения</button>
+        <button id="close-ts-modal">Закрыть</button>
+    </div>
+</div>
+<javascript>
+// В функции init() добавляем:
+document.getElementById('manage-ts-types').addEventListener('click', showTsTypesModal);
+document.getElementById('close-ts-modal').addEventListener('click', closeTsTypesModal);
+document.getElementById('add-ts-type').addEventListener('click', addNewTsType);
+document.getElementById('save-ts-types').addEventListener('click', saveTsTypesChanges);
+
+let editingTsTypes = {};
+
+// Показать модальное окно управления
+async function showTsTypesModal() {
+    editingTsTypes = JSON.parse(JSON.stringify(tsParams)); // Копируем текущие параметры
+    renderTsTypesList();
+    document.getElementById('ts-types-modal').style.display = 'block';
+}
+
+// Закрыть модальное окно
+function closeTsTypesModal() {
+    document.getElementById('ts-types-modal').style.display = 'none';
+}
+
+// Отобразить список типов для редактирования
+function renderTsTypesList() {
+    const container = document.getElementById('ts-types-list');
+    container.innerHTML = '';
+    
+    Object.keys(editingTsTypes).forEach(typeName => {
+        const typeDiv = document.createElement('div');
+        typeDiv.style.margin = '10px 0';
+        typeDiv.style.padding = '10px';
+        typeDiv.style.border = '1px solid #ddd';
+        typeDiv.style.borderRadius = '4px';
+        
+        typeDiv.innerHTML = `
+            <h4>${typeName}</h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+                ${Object.keys(editingTsTypes[typeName]).map(key => `
+                    <label style="display:flex; align-items:center;">
+                        <span style="flex:1;">${key}:</span>
+                        <input type="text" value="${editingTsTypes[typeName][key]}" 
+                               onchange="editingTsTypes['${typeName}']['${key}'] = this.value"
+                               style="width:80px;">
+                    </label>
+                `).join('')}
+            </div>
+            <button onclick="deleteTsType('${typeName}')" style="margin-top:5px;">Удалить</button>
+        `;
+        
+        container.appendChild(typeDiv);
+    });
+}
+
+// Добавить новый тип ТС
+function addNewTsType() {
+    const newTypeName = prompt('Введите название нового типа ТС:');
+    if (!newTypeName) return;
+    
+    if (editingTsTypes[newTypeName]) {
+        alert('Тип с таким названием уже существует!');
+        return;
+    }
+    
+    // Добавляем с параметрами по умолчанию
+    editingTsTypes[newTypeName] = {
+        L: 1200, T: 240, H: 260,
+        maxW: 25000, maxCML: 30, maxCMT: 10,
+        maxKGL: 1500, maxKGT: 500,
+        minCMDoor: 50, minDimX: 25
+    };
+    
+    renderTsTypesList();
+}
+
+// Удалить тип ТС
+function deleteTsType(typeName) {
+    if (!confirm(`Удалить тип "${typeName}"?`)) return;
+    delete editingTsTypes[typeName];
+    renderTsTypesList();
+}
+
+// Сохранить изменения типов ТС
+async function saveTsTypesChanges() {
+    if (await updateTsIni(editingTsTypes)) {
+        closeTsTypesModal();
+    } else {
+        alert('Не удалось сохранить изменения');
+    }
+}
+</javascript>

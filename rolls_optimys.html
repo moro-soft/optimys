@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Оптимус - 3D Оптимизация размещения рулонов - СЦР Сегежа </title>
+    <style>
+		#panel2D {
+            visibility: hidden;
+			position: absolute;
+            top: 10px;
+            left: 250px;
+			right: 200px; 
+            
+            background: rgba(255,255,255,1);
+            padding: 0px; 
+			margin: 0px;
+            max-width: 100%;
+			max-height: 100%;
+            overflow-y: auto;
+        }
+		.print-container { display: flex; flex-wrap: wrap; gap: 0px; margin: 0; padding: 0px; }
+		.view-container { padding: 0px; margin: 0px;}
+		svg { display: block; margin: 0 auto; background: #FFFFFF; padding: 0px; }
+		.container-rect { fill: none; stroke: #999; stroke-width: 1; padding: 0px; }
+		.roll-rect { fill: rgba(204,153,51,0.2); stroke: #996633; stroke-width: 1; }
+		.roll-circle { fill: rgba(204,153,51,0.4); stroke: #996633; stroke-width: 1; }
+		.axis { stroke: #333; stroke-width: 1; stroke-dasharray: 4,4; }
+		.axis-label { font-size: 12px; fill: #555; }
+		.dim-line { stroke: #777; stroke-width: 1; stroke-dasharray: 4,4; }
+		.dim-text { font-size: 12px; fill: #222244; }
+		.title { text-align: center; font-size: 20px; margin: 0; color: #2c3e50; }
+		.subtitle { text-align: center; font-size: 12px; color: #7f8c8d; margin-bottom: 0px; }
+
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #container-settings {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            max-width: 230px;
+			max-height: 240px;
+            overflow-y: auto;
+        }
+        #info-panel {
+            position: absolute;
+            top: 260px;
+            left: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            max-width: 200px;
+			max-height: 70%;
+            overflow-y: auto;
+        }
+        .error {
+            background: rgba(255,200,200,0.9);
+            padding: 1px;
+        }
+        .metric { font-weight: bold; }
+        .deviation { 
+            padding: 3px; 
+            border-radius: 3px;
+            margin-top: 2px;
+        }
+        .deviation.normal {
+            background-color: rgba(0, 200, 0, 0.2);
+        }
+        .deviation.warning {
+            background-color: rgba(255, 165, 0, 0.2);
+        }
+        .deviation.critical {
+            background-color: rgba(255, 0, 0, 0.2);
+        }
+        #controls {
+            position: absolute;
+            bottom: 200px;
+            left: 10px;
+            background: rgba(255,255,255,0.7);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .setting-row {
+            margin: 0px;
+        }
+        .setting-row label {
+            display: inline-block;
+            width: 100px;
+        }
+        .setting-row input {
+            width: 45px;
+        }
+		#container-settings .setting-row input {
+            width: 70px;
+        }
+        button {
+            padding: 5px 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 0px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+		.roll-label {
+			position: absolute;
+			color: #333333;
+			background: rgba(255,255,255,0.5);
+			//padding: 2px 5px; border-radius: 3px;
+			font-size: 12px;
+			//white-space: nowrap;
+			pointer-events: none;
+			transform: translate(-50%, -100%);
+		}		
+		#rolls-settings {
+			position: absolute;
+			top: 10px;
+			right: 10px;
+			background: rgba(255,255,255,0.9);
+			padding: 10px;
+			border-radius: 5px;
+			box-shadow: 0 0 10px rgba(0,0,0,0.2);
+			max-width: 180px;
+			z-index: 10;
+			max-height: 100%;
+			overflow-y: auto;
+		}
+		.roll-set {
+			background: rgba(240,240,240,0.7);
+			padding: 0px;
+			margin: 10px;
+			border-radius: 5px;
+			position: relative;
+		}
+		.remove-roll-set {
+			position: absolute;
+			top: 0px;
+			right: -15px;
+			background: #444336;
+			padding: 2px 4px;
+			font-size: 10px;
+		}
+		.remove-roll-set:hover {
+			background: #d32f2f;
+		}
+		#controls {
+			position: absolute;
+			top: 90%;
+			left: 90%;
+			color: rgba(51,51,51,0.5);
+			width: 150px;
+			height: 100px;
+			margin: auto;
+		}	
+		#copyr {
+			position: absolute;
+			top: 5px;
+			left: 40%;
+			font-size: 12px;
+			color: rgba(51,105,51,0.6);
+			margin: auto;
+			height: 20px;
+		}	
+    </style>
+</head>
+
+
+
+
+
+
+
+
+<body>
+    <div id="panel2D">
+		<!-- <div class="title">Оптимус - изо.схемы размещения</div> -->
+		<div id="views-container"></div>
+		<div class="subtitle">СЦР Сегежа</div>
+    </div>
+    <div id="container-settings">
+        <div class="setting-row">
+			<button id="update-container">Обновить</button>
+			<button id="print-3d">3D</button>
+			<button id="print-2d">2D</button>
+        </div>
+        <span>Контейнер:  (см) (кг)</span>
+        <div class="setting-row">
+			Отступ <br>
+			<label > от двери<br>	 <input name="container-minCMDeviationDoor" id="minCMDeviationDoor" value="50" min="0" step="1" type="number" ></label>
+        </div>
+        <div class="setting-row">
+            <label >Длина(X)	<input name="container-length"	id="length" value="1203"	min="3000"	max="1500"	step="1" type="number"  ></label>
+            <label >Допуск:		<input name="container-maxCMDeviationLength"	id="maxCMDeviationLength" value="1500" min="1" step="1" type="number" ></label>
+        </div>
+        <div class="setting-row">
+            <label >Ширина(Y)	<input name="container-width"	id="width"	value="235"		min="100"	max="250"	step="1" type="number" ></label>
+            <label >Допуск(Y):	<input name="container-maxCMDeviationWidth"		id="maxCMDeviationWidth" value="500" min="1" step="1" type="number" ></label>
+        </div>
+        <div class="setting-row">
+            <label >Высота(Z)	<input name="container-height"  id="height" value="259"	min="200"	max="300"	step="1" type="number" ></label>
+            <label >Макс.вес <input name="container-maxWeight"			id="maxWeight" value="25500" min="1000" step="100" type="number" ></label>
+        </div>
+    </div>
+    <div id="info-panel">
+        <span>Информация о схеме (см)</span>
+        <div class="metric">Длина(X):<span id="container-length"></span></div>
+        <div class="metric">Ширина(Y):<span id="container-width"></span></div>
+        <div class="metric">Высота(Z):<span id="container-height"></span></div>
+        <div class="metric">Вес: <span id="container-weight"></span></div>
+        <div class="metric">Центр контейнера(см): 
+            <div>X: <span id="container-center-x"></span></div>
+            <div>Y: <span id="container-center-y"></span></div>
+            <div>Z: <span id="container-center-z"></span></div>
+        </div>
+        <div class="metric">Центр масс груза(см): 
+            <div>X: <span id="mass-center-x"></span></div>
+            <div>Y: <span id="mass-center-y"></span></div>
+            <div>Z: <span id="mass-center-z"></span></div>
+        </div>
+        <div class="metric">Отклонение центра<br>масс (допуск) см, (допуск) кг:
+            <div id="deviation-x" class="deviation">X: <span></span> (<span></span>) <span></span> (<span></span>) </div>
+            <div id="deviation-y" class="deviation">Y: <span></span> (<span></span>) <span></span> (<span></span>) </div>
+			<button id="more-optimize">Перестановка</button>
+        </div>
+		<div class="metric">Расстояние до дверей: <span id="door-distance"></span> см</div>
+        <div class="metric">Размещено: <span id="placed-count"></span></div>
+        <div class="metric">Не размещено: <span id="unplaced-count"></span></div>
+		<div id="error-panel">
+			<div id="error-list"></div>
+		</div>
+	</div>
+	<div id="rolls-settings">
+		<button id="generate-rolls">Загрузить</button><br>
+		<span>Набор рулонов:</span><button id="add-roll-set">+1</button>
+	</div>
+    <div id="controls">
+        <div>
+			Управление мышью:<br/>
+			ЛКМ-вращение<br/>
+			ПКМ-перемещение<br/>
+			Колесо-масштаб<br/>
+		</div>
+    </div>
+    <div id="copyr">
+		Оптимус v5.6 - 3D Оптимизация размещения рулонов - &copy;2025 СЦР Сегежа 
+    </div>
+	<script src="js/three.min.js"></script>
+	<script src="js/OrbitControls.min.js"></script>
+    <script>
+
+
+		// Модель 
+
+
+        class Roll {
+            constructor(id, height, diameter, weight) {
+                this.id = id;
+                this.height = height;
+                this.diameter = diameter;
+                this.weight = weight;
+                this.color = 'rgba(204,153,51,0.5)';// + Math.floor((Math.random()+1) /2 * 0xFFFFFF).toString(16).padStart(6, '0');
+                this.x = 0;
+                this.y = 0;
+                this.z = 0;
+				this.s = 0;
+				this.dim = 0;
+				this.pId = 0;
+                this.placementError = null;
+            }
+        }
+        class Container {
+            constructor(length, width, height, maxWeight, maxCMDeviationLength, maxCMDeviationWidth, maxKGDeviationLength, maxKGDeviationWidth, minCMDeviationDoor) {
+                this.totalLoaded = 0;
+                this.length = length;
+                this.width = width;
+                this.height = height;
+				this.centerX = length / 2;
+				this.centerY = width / 2;
+                this.centerZ = height / 2;
+                this.maxWeight = maxWeight;
+                this.maxCMDeviationLength = maxCMDeviationLength;
+                this.maxCMDeviationWidth = maxCMDeviationWidth;
+                this.maxKGDeviationLength = maxKGDeviationLength;
+                this.maxKGDeviationWidth = maxKGDeviationWidth;
+                this.minCMDeviationDoor = minCMDeviationDoor;
+                this.stacks = [];
+                this.unplacedRolls = [];
+                this.totalWeight = 0;
+                this.centerOfMass = { x: this.centerX, y: this.centerY, z: this.centerZ }; // центр массы груза
+				this.frontW = 0; // начало
+				this.backW = 0; // клнец - вес груза по X 
+				this.leftW = 0;  // слева
+				this.rightW = 0; // справа - вес груза по Y
+                this.centerOfCont = { x: this.centerX, y: this.centerY, z: this.centerZ }; // Геометрически центр
+                this.occupiedPositions = [];
+                this.currentRow = 0;
+                this.currentRowDiameter = 0;
+                this.Positions = [];
+				this.swaps = [];
+            }
+            addUnplacedRoll(roll, reason) {
+                roll.placementError = reason;
+                this.unplacedRolls.push(roll);
+            }
+
+
+			// Прерасчет позиций 
+			precalculatePositions(diameter) {
+				this.Positions = [];
+				const Dv2 = diameter*diameter;
+				const R = diameter / 2;
+				const W = this.width; // ось Y ширина контейнера
+				const L = this.length; // ось X - длинна  контейнера без отступа от двери
+				let current_X = R;
+				let current_Y = R;
+				let rowNumber = 0;
+				while (current_X <= L - R - this.minCMDeviationDoor) {
+					const isOddRow = rowNumber % 2 === 0; //признак четности
+					let start_Y = isOddRow ? W - R : R; // начальная позичия по ширине
+					let direction = isOddRow ? -1 : 1;  //направление
+					// Оптимизация X позиционирования
+					if (rowNumber > 0) {
+						// Ищем ближайшие круги в предыдущих 1 ряде мень текущего, но не далее 1 ряда по диаметру
+						const prevCircles = this.Positions.filter(p => p.x>current_X - diameter && p.x < current_X); 
+						if (prevCircles.length > 0) {
+							// Находим минимально возможный X для касания хотя бы одного круга
+							let minNew_X = current_X;
+							prevCircles.forEach(circle => {
+								const dyMax = diameter - 0.001;
+								const dx = Math.sqrt(diameter*diameter - Math.min(
+									dyMax*dyMax, 
+									Math.pow((isOddRow ? (W-R-circle.y) : (circle.y-R)), 2)
+								));
+								minNew_X = Math.max(minNew_X, circle.x + dx);//console.log(" dx ="+dx +" 1y"+(W-R-circle.y) +" 2y"+(circle.y-R))
+							});
+							current_X = Math.min(minNew_X, L - R - this.minCMDeviationDoor);//console.log(" +min x="+minNew_X+"  x="+(L - R));
+						}
+					}
+					if (current_X > L - R - this.minCMDeviationDoor) break; // за пределами отступа
+					// Формирование ряда
+					const rowPositions = [];
+					// Собираем круги в текущем ряду
+					for (let current_Y = start_Y; current_Y >= R && current_Y <= W - R; current_Y += direction * diameter) {
+						rowPositions.push({x: current_X, y: current_Y });
+					}
+					// Оптимизация: сдвигаем весь ряд для касания соседних кругов
+					if (rowNumber > 0 && rowPositions.length > 0) {
+						const closestPrev = this.Positions.filter(p => Math.abs(p.x - current_X) > 0.01 && p.x < current_X );
+						let minShift = 0;
+						// Находим минимальный сдвиг для касания хотя бы одного круга
+						closestPrev.forEach(prevPos => {
+							rowPositions.forEach(pos => {
+								const dx = pos.x - prevPos.x;
+								const dy = pos.y - prevPos.y;
+								const distance = Math.sqrt(dx*dx + dy*dy);
+								if (distance > diameter) {
+									const neededShift = Math.sqrt(diameter*diameter - dy*dy) - Math.abs(dx);
+									minShift = Math.max(minShift, neededShift);
+								}
+							});
+						});
+						if (minShift > 0) {
+							shift = isOddRow ? -minShift : minShift;
+							rowPositions.forEach(pos => {
+								pos.x += shift;		//console.log(" ~"+shift+" x="+pos.x+" minShift="+minShift)
+							}
+						);
+							// Фильтрация выходящих за границы позиций
+							for (let i = rowPositions.length-1; i >= 0; i--) {
+								if (rowPositions[i].y < R || rowPositions[i].y > W - R) {		//console.log(" -"+minShift+" x="+rowPositions[i].x+" y="+rowPositions[i].y)
+									rowPositions.splice(i, 1);
+								}
+							}
+						}
+					}
+					// Добавление валидных позиций
+					rowPositions.forEach(pos => {
+						const dxMax = Math.max( pos.x + diameter, L - R - this.minCMDeviationDoor);
+						for (let div_x = pos.x; div_x <= dxMax; div_x += 0.01) {
+							const isValid = !this.Positions.some(P => { // хотя бы один
+								const dx = pos.x - P.x;
+								const dy = pos.y - P.y;
+								return dx*dx + dy*dy < Dv2;
+							});
+							if (isValid) {
+								for (let s = 1; s <=2; s++) { 
+									this.Positions.push({
+										id: 0,
+										x: pos.x,
+										y: pos.y,
+										z: 0,
+										dim: 1000 * (s-1) + Math.round( Math.abs(pos.y - W/2) + Math.abs(pos.x - L/2 - this.minCMDeviationDoor) ), //+ смещаем ближе к двери на отступ*2 
+										s: s, // Слой
+										row: rowNumber,
+										diameter: diameter,
+										used: false
+									});
+								};		
+								console.log(" "+isOddRow+" + x="+parseInt(pos.x)+" y="+parseInt(pos.y)+" direction="+direction)
+								break; // найдена позиция прервать смещение по X 
+							}
+							pos.x = div_x;
+						}	
+					});
+					// Переход к следующему ряду
+					
+					current_X += 0.01; // Уменьшенный шаг для более плотной упаковки
+					rowNumber++;
+					console.log("_X "+current_X+ " N"+rowNumber)
+				}
+				// Сортировка позиций по близости к центру
+				// смысл: начиная от центра контейнера равномерно по весу укладываем + смещаем ближе к двери учитывая заданный от нее отстут для компенсации смещения из-за этого центра масс
+				this.Positions.sort((a, b) => a.dim - b.dim	);
+				let id = 0;
+				for ( const position of this.Positions) position.id = ++id; //	console.log(" poz="+position.id);						
+			}
+
+
+
+			// Проверки размещения в позиции 
+
+
+
+			canPlaceStack(position, stack) {
+                const d = stack[0].diameter;
+                const r = d / 2;
+                const q = 1;
+				const x = position.x;
+				const y = position.y;
+				const s = position.s;
+                // внутри контейнера:
+				if (x - r < 0 || x + r > this.length - this.minCMDeviationDoor) return false; // не в длине
+				if (y - r < 0 || y + r > this.width) return false; // не в ширине 
+				// в высоте                               
+				let currentZ = 0;
+                if (s > 0) {
+                    for (const pos of this.occupiedPositions) {
+                        if ( pos.s < s && pos.x === x && pos.y === y ) {
+                            currentZ += pos.height;
+                        }
+                    }
+                }
+				if (currentZ + stack[0].height > this.height) return false;// не в высоте                               
+return true; // пока без проверки контактов
+                let contactPoints = 0;
+                if (x - r <= q) contactPoints++;
+                if (x + r >= this.length - this.minCMDeviationDoor - q) contactPoints++;
+                if (y - r <= q) contactPoints++;
+                if (y + r >= this.width - q) contactPoints++;
+                for (const pos of this.occupiedPositions) {
+                    if (pos.s === s) {
+                        const distance = Math.sqrt(Math.pow(x - pos.x, 2) + Math.pow(y - pos.y, 2));
+                        const requiredDistance = (d + pos.diameter) / 2;
+                        if (Math.abs(distance - requiredDistance) <= q) {
+                            contactPoints++;
+                            if (contactPoints > 1 ) break;
+                            if (d > pos.diameter) {
+                            return false;
+                        }
+                        } else if (distance < requiredDistance - q) {
+                            return false;
+                        }
+                    }
+                }
+				//if (contactPoints>1) console.log(" .."+contactPoints+" s="+position.s+" x="+position.x+" y="+position.y)
+                return contactPoints >= 2;
+            }
+			// Стек рулонов
+            createVerticalStacks(rolls) {
+                rolls.sort((a, b) => {
+                    if (a.diameter === b.diameter) {
+                        return b.weight - a.weight;
+                    }
+                    return b.diameter - a.diameter;
+                });
+                const stacks = [];
+                let currentStack = [];
+                let id = 0;
+                for (const roll of rolls) {
+					roll.id = ++id;
+                    if (currentStack.length > 0) {
+                        const bottomRoll = currentStack[0];
+                        if (roll.diameter > bottomRoll.diameter || roll.weight > bottomRoll.weight) {
+                            stacks.push(currentStack);
+                            currentStack = [];
+                        }
+                    }
+                    const currentHeight = currentStack.reduce((sum, r) => sum + r.height, 0);
+                    if (currentHeight + roll.height > this.height) {
+                        stacks.push(currentStack);
+                        currentStack = [];
+                    }
+                    currentStack.push(roll);
+                    if (currentStack.length > 0) {
+                        stacks.push(currentStack);
+                        currentStack = [];
+                    }
+                }
+                if (currentStack.length > 0) {
+                    stacks.push(currentStack);
+                }
+                return stacks;
+            }
+            updateStackPositions() {
+                this.occupiedPositions = [];
+                for (const stack of this.stacks) {
+                    const diameter = stack[0].diameter;
+                    const weight = stack.reduce((sum, roll) => sum + roll.weight, 0);
+                    this.occupiedPositions.push({
+                        stack: stack,  // добавляем ссылку на стек
+						x: stack[0].x,
+                        y: stack[0].y,
+                        s: stack[0].s,
+                        diameter: diameter,
+						height: height,
+						weight: weight
+                    });
+                }
+            }
+            optimizeBalance0() { 
+				const maxIterations = 1000;
+                const improvementThreshold = 0;
+				this.swaps=[];
+                for (let i = 0; i < maxIterations; i++) {
+                    const currentDeviation = this.calculateCurrentDeviation();
+                    if (	currentDeviation.x < this.maxCMDeviationLength 
+						&&	currentDeviation.y < this.maxCMDeviationWidth 
+						&&	Math.abs(this.backW  - this.frontW	) < this.maxKGDeviationLength 
+						&&	Math.abs(this.rightW - this.leftW	) < this.maxKGDeviationWidth	) { //console.log(" x "+currentDeviation.x+"<"+this.maxCMDeviationLength+ " у "+currentDeviation.y+"<"+this.maxCMDeviationWidth);	
+                        break;
+                    }
+                    let bestSwap = null;
+					let bestImprovement = improvementThreshold;
+                    for (let j = 0; j < this.stacks.length; j++) {
+						if(this.swaps.indexOf(j)==-1)	
+						for (let k = j + 1; k < this.stacks.length; k++) {// порядок престановки прямой 
+						//for (let k = this.stacks.length-1; k > j + 1; k--) { // обратный порядок      	
+							if(this.swaps.indexOf(k)==-1) {
+								this.swapStacks(j, k);
+								const newDeviation = this.calculateCurrentDeviation();
+								const improvement = 
+									Math.abs(currentDeviation.x - newDeviation.x) + 
+									Math.abs(currentDeviation.y - newDeviation.y) ;
+								if (improvement > bestImprovement) {
+									bestImprovement = improvement;
+									bestSwap = { j, k };
+								}
+								this.swapStacks(j, k);
+							}	
+                        }
+                    }
+                    if (bestImprovement > improvementThreshold && bestSwap !== null) {
+                        this.swapStacks(bestSwap.j, bestSwap.k);
+						this.swaps.push(bestSwap.j);
+						//this.swaps.push(bestSwap.k);
+console.log("best "+bestImprovement+"  "+bestSwap.j+' <->'+bestSwap.k );	
+                    } else {
+                       break;
+                    }
+                }
+            }
+			
+            optimizeBalance() { 
+				const maxIterations = 100;
+                const improvementThreshold = 0;
+				this.swaps=[];
+                for (let i = 0; i < maxIterations; i++) {
+                    const currentDeviation = this.calculateCurrentDeviation();
+                    if (	currentDeviation.x < this.maxCMDeviationLength 
+						&&	currentDeviation.y < this.maxCMDeviationWidth 
+						&&	Math.abs(this.backW  - this.frontW	) < this.maxKGDeviationLength 
+						&&	Math.abs(this.rightW - this.leftW	) < this.maxKGDeviationWidth	) { //console.log(" x "+currentDeviation.x+"<"+this.maxCMDeviationLength+ " у "+currentDeviation.y+"<"+this.maxCMDeviationWidth);	
+                        break;
+                    }
+                    let bestSwap = null;
+					let bestImprovement = improvementThreshold;
+                    for (let j = 0; j < this.stacks.length; j++) {
+						if(this.swaps.indexOf(j)==-1)	//for (let k = j + 1; k < this.stacks.length; k++) {// порядок престановки прямой 
+						for (let k = this.stacks.length-1; k > j + 1; k--) { // обратный порядок      	
+							if(this.swaps.indexOf(k)==-1) {
+								this.swapStacks(j, k);
+								const newDeviation = this.calculateCurrentDeviation();
+								const improvement = 
+									Math.abs(currentDeviation.x - newDeviation.x) + 
+									Math.abs(currentDeviation.y - newDeviation.y) ;
+								if (improvement > bestImprovement) {
+									bestImprovement = improvement;
+									bestSwap = { j, k };
+								}
+								this.swapStacks(j, k);
+							}	
+                        }
+                    }
+                    if (bestImprovement > improvementThreshold && bestSwap !== null) {
+                        this.swapStacks(bestSwap.j, bestSwap.k);
+						this.swaps.push(bestSwap.j);
+						//this.swaps.push(bestSwap.k);
+console.log("best "+bestImprovement+"  "+bestSwap.j+' <->'+bestSwap.k );	
+                    } else {
+                       break;
+                    }
+                }
+            }
+			
+            updateCenterOfMass() { // пресчет центров масс груза
+                let totalWeight = 0;
+                let cmX = 0;
+                let cmY = 0;
+                let cmZ = 0;
+				this.leftW = 0;
+				this.rightW = 0;
+				this.frontW = 0;
+				this.backW = 0;
+				for (const stack of this.stacks) {
+					for (const roll of stack) {
+						totalWeight	 += roll.weight;
+						cmX += roll.x * roll.weight;
+						cmY += roll.y * roll.weight;
+						cmZ += roll.z * roll.weight;
+						if (roll.y < this.centerY) {
+							this.leftW += roll.weight;
+						} else {
+							this.rightW += roll.weight;
+						}
+						if (roll.x < this.centerX) {
+							this.frontW += roll.weight;
+						} else {
+							this.backW += roll.weight;
+						}
+					}
+				}
+                if (totalWeight > 0) {
+                    this.centerOfMass = {
+                        x: cmX / totalWeight,
+                        y: cmY / totalWeight,
+                        z: cmZ / totalWeight
+                    };
+                }
+                this.totalWeight = totalWeight;
+            }
+			swapStacks2(index1, index2) {
+				const stack1 = this.stacks[index1];
+				const stack2 = this.stacks[index2];
+				// Если один из стеков пуст, то ничего не делаем
+				if (!stack1 || !stack2 || stack1.length === 0 || stack2.length === 0) return;
+				// Сохраняем позиции
+				const pos1 = { x: stack1[0].x, y: stack1[0].y, s: stack1[0].s };
+				const pos2 = { x: stack2[0].x, y: stack2[0].y, s: stack2[0].s };
+				// Удаляем записи occupiedPositions для этих двух стеков
+				this.occupiedPositions = this.occupiedPositions.filter(pos =>
+					!(pos.x === pos1.x && pos.y === pos1.y && pos.s === pos1.s) &&
+					!(pos.x === pos2.x && pos.y === pos2.y && pos.s === pos2.s)
+					);
+				// Перемещаем стек1 в позицию стек2
+				this.moveStackToPosition(stack1, pos2);
+				// Перемещаем стек2 в позицию стек1
+				this.moveStackToPosition(stack2, pos1);
+				// Добавляем обновленные позиции обратно в occupiedPositions
+				this.addPositionForStack(stack1);
+				this.addPositionForStack(stack2);
+				// Меняем стеки местами в массиве stacks (чтобы порядок соответствовал новым позициям)
+				this.stacks[index1] = stack2;
+				this.stacks[index2] = stack1;
+				this.updateCenterOfMass();
+			}
+			addPositionForStack2(stack) {
+				const diameter = stack[0].diameter;
+				const height = stack.reduce((sum, roll) => sum + roll.height, 0);
+				const weight = stack.reduce((sum, roll) => sum + roll.weight, 0);
+				this.occupiedPositions.push({
+					stack: stack,  // добавляем ссылку на стек
+					x: stack[0].x,
+					y: stack[0].y,
+					s: stack[0].s,
+					diameter: diameter,
+					height: height,
+					weight: weight
+					});
+			}
+			moveStackToPosition2(stack, newPosition) {
+				// Устанавливаем новые координаты x, y, s для всех рулонов стека
+				for (const roll of stack) {
+					roll.x = newPosition.x;
+					roll.y = newPosition.y;
+					roll.s = newPosition.s;
+				}
+				// Пересчитываем z-координаты для стека
+				let currentZ = 0;
+				let currentZstack = 0;
+				// Если слой больше 0, то нужно учесть рулоны под этим стеком
+				if (newPosition.s > 0) {
+					for (const pos of this.occupiedPositions) {
+						// Ищем позиции, которые находятся под новым слоем и в той же точке (x, y)
+						if (pos.x === newPosition.x && pos.y === newPosition.y) {
+							if (pos.stack.z !== currentZ + pos.stack.height/2 ) { //console.log(" z="+pos.stack.z +"->"+currentZ +"+"+(pos.stack.height/2));
+								// Устанавливаем z для каждого рулона в стеке
+								for (const roll of pos.stack) {
+									roll.z = currentZ + roll.height / 2;
+									currentZ += roll.height;
+								}
+							}	
+							currentZ += pos.height;
+							if (pos.s < newPosition.s ) currentZstack += pos.height;
+						}
+					}
+				}
+				// Устанавливаем z для каждого рулона в стеке
+				for (const roll of stack) {
+					roll.z = currentZstack + roll.height / 2;
+					currentZstack += roll.height;
+				}
+				// Если слой больше 0, то нужно учесть рулоны под этим стеком
+				if (newPosition.s > 0) {
+					for (const pos of this.occupiedPositions) {
+						// Ищем позиции, которые находятся под новым слоем и в той же точке (x, y)
+						if (pos.x === newPosition.x && pos.y === newPosition.y && pos.s < newPosition.s ) {
+							currentZ += pos.height;
+						}
+					}
+				}
+			}
+			
+			swapStacks(index1, index2) {
+				const stack1 = this.stacks[index1];
+				const stack2 = this.stacks[index2];
+				// Сохраняем оригинальные позиции
+				const pos1 = { x: stack1[0].x, y: stack1[0].y };
+				const pos2 = { x: stack2[0].x, y: stack2[0].y };
+				// Перемещаем стек1 в позицию стек2
+				this.moveStackToPosition(stack1, pos2);
+				// Перемещаем стек2 в позицию стек1
+				this.moveStackToPosition(stack2, pos1);
+
+   				// Меняем стеки местами в массиве stacks (чтобы порядок соответствовал новым позициям)
+				this.stacks[index1] = stack2;
+				this.stacks[index2] = stack1;
+
+				// Обновляем стек в occupiedPositions
+				//this.updateStackPositions();
+				this.updateCenterOfMass();
+			}
+						
+			moveStackToPosition(stack, target) {
+				// Сохраняем оригинальные координаты
+				const original = {	x: stack[0].x, y: stack[0].y };
+				// Находим занятую позицию для этого стека
+				const positionIndex = this.occupiedPositions.findIndex(
+					pos => pos.x === original.x && pos.y === original.y && pos.stack === stack
+				);
+				
+				if (positionIndex !== -1) {
+					// Перемещаем все рулоны в стеке по X и Y
+					for (const roll of stack) {
+						roll.x += target.x;
+						roll.y += target.y;
+					}
+					stack[0].x = target.x;
+					stack[0].y = target.y;
+
+					// Обновляем позицию в occupiedPositions
+					const position = this.occupiedPositions[positionIndex];
+					position.x = target.x;
+					position.y = target.y;
+					
+					this.recalculateZForPosition(original);  // Пересчитываем Z для исходной позиции (после удаления	 стека)
+					this.recalculateZForPosition(target);    			 // пересчитываем Z-координаты для всей колонки
+				}
+				
+				return true;
+			}
+
+			recalculateZForPosition(target) {
+				// Находим все стеки в этой позиции (все слои)
+				const stacksInPosition = this.occupiedPositions.filter( pos => Math.abs(pos.x - target.x) < 0.01 && Math.abs(pos.y - target.y) < 0.01  );
+				// Сортируем стеки по слою (от нижнего к верхнему)
+				stacksInPosition.sort((a, b) => a.s - b.s);
+				let currentZ = 0;
+				// Пересчитываем Z для каждого стека в позиции
+				for (const position of stacksInPosition) {
+					// Обновляем высоту позиции
+					position.height = position.stack.reduce((sum, roll) => sum + roll.height, 0);
+					// Устанавливаем новые Z-координаты для рулонов
+					for (const roll of position.stack) {
+
+			//console.log("#"+roll.id+" s="+ roll.s+" z="+roll.z +"->"+currentZ +"+"+(roll.height / 2));
+						roll.z = currentZ + roll.height / 2;
+						currentZ += roll.height;
+					}
+					// Обновляем общую высоту в позиции
+					position.height = currentZ;
+				}
+			}			
+			
+			
+            calculateCurrentDeviation() {
+                return {
+                    x: Math.abs(this.centerOfMass.x - this.centerX),
+                    y: Math.abs(this.centerOfMass.y - this.centerY)
+                };
+            }
+            addUnplacedRolls(stack, reason) {
+                for (const roll of stack) {
+                    this.addUnplacedRoll(roll, reason);
+                }
+            }
+			// поиск свободного места
+            findFreePosition(stack) {
+                for (const position of this.Positions) {
+					if (!position.used && this.canPlaceStack(position,stack)) {
+                        this.setplaceStack(stack, position);
+						position.used = true;
+						position.z = stack[0].z;
+						return true; 
+                    }
+                }
+				this.addUnplacedRolls(stack, "Нет позиции");
+                return null;
+            }
+            setplaceStack(stack, position) {
+                const diameter = stack[0].diameter;
+				const weight = stack[0].weight;
+                let stackWeight = 0;
+                let stackHeight = 0;
+                for (let i = 0; i < stack.length; i++) {
+                    if (i > 0 && (stack[i].diameter > diameter || stack[i].weight > weight)) {
+                        return this.addUnplacedRolls(stack, "Нарушено условие: верхний рулон больше нижнего");
+                    }
+                    stackWeight += stack[i].weight;
+                    stackHeight += stack[i].height;
+                }
+                if (stackHeight > this.height) {
+                    return this.addUnplacedRolls(stack, "Превышена высота контейнера");
+                }
+                if (this.totalWeight + stackWeight > this.maxWeight) {
+                    return this.addUnplacedRolls(stack, "Превышен максимальный вес");
+                }
+                let currentZ = 0;
+                if (position.s > 0) {
+                    for (const pos of this.occupiedPositions) {
+                        if (pos.x === position.x && pos.y === position.y && pos.s < position.s ) {
+                            currentZ += pos.height;
+                        }
+                    }
+                }
+                for (const roll of stack) {
+                    roll.pId = position.id;
+                    roll.x = position.x;
+                    roll.y = position.y;
+                    roll.z = currentZ + roll.height / 2; // высота меняется
+					roll.s = position.s;
+					roll.dim = position.dim;
+                    currentZ += roll.height;
+                }
+                this.occupiedPositions.push({
+                    stack: stack,  // добавляем ссылку на стек
+					x: position.x,
+                    y: position.y,
+                    s: position.s,
+                    diameter: diameter,
+                    weight: stackWeight,
+                    height: stackHeight
+                });
+                this.stacks.push(stack);
+                this.totalWeight += stackWeight;
+                this.updateCenterOfMass();
+                return true;
+            }
+            optimizedPlacement(rolls) {
+                const grouped = {};
+                for (const roll of rolls) {
+                    if (!grouped[roll.diameter]) {
+                        grouped[roll.diameter] = [];
+                    }
+                    grouped[roll.diameter].push(roll);
+                }
+                const diameters = Object.keys(grouped).sort((a, b) => b - a);
+                for (const diameter of diameters) {
+                    this.precalculatePositions(parseFloat(diameter));
+                    const stacks = this.createVerticalStacks(grouped[diameter]);
+                    for (const stack of stacks) {
+						this.findFreePosition(stack);
+                    }
+                }
+                this.totalLoaded = this.occupiedPositions.length;
+                //this.optimizeBalance();
+            }
+			calculateDoorDistance() { // Расстояние от рулона до задней стенки (x = length)
+				if (this.stacks.length === 0) return Infinity;
+				let minDistance = Infinity;
+				for (const stack of this.stacks) {
+					for (const roll of stack) {
+						const distance = this.length - (roll.x + roll.diameter/2);
+						if (distance < minDistance) {
+							minDistance = distance;
+						}
+					}
+				}
+				return minDistance;
+			}		
+        }
+
+
+
+
+        // Приложение
+
+
+
+
+        let containerData, scene, camera, renderer, controls;
+        let rolls = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf5f5f5);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.set(400, 300, 500);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            const axesHelper = new THREE.AxesHelper(100);
+            axesHelper.position.set(0, 0, 0);
+            scene.add(axesHelper);
+            // Create sample rolls data
+            rolls = createSampleRolls();
+            // Initialize with default container settings
+            initContainer();
+			initRollSettings();
+            window.addEventListener('resize', onWindowResize);
+            // Add event listener for container update button
+            document.getElementById('update-container').addEventListener('click', initContainer);
+        }
+		function initContainer() {
+
+			// Сброс контролов камеры
+			controls.dispose();
+			// Получение новых параметров
+			const length				= parseFloat(document.getElementById('length').value);
+			const width					= parseFloat(document.getElementById('width').value);
+			const height				= parseFloat(document.getElementById('height').value);
+			const maxWeight				= parseFloat(document.getElementById('maxWeight').value);
+			const maxCMDeviationLength	= parseFloat(document.getElementById('maxCMDeviationLength').value);
+			const maxCMDeviationWidth	= parseFloat(document.getElementById('maxCMDeviationWidth').value);
+			const minCMDeviationDoor	= parseFloat(document.getElementById('minCMDeviationDoor').value);
+			// Создание нового контейнера
+			const container = new Container(length, width, height, maxWeight, 50, 10, maxCMDeviationLength, maxCMDeviationWidth, minCMDeviationDoor);
+			container.optimizedPlacement(rolls);
+			containerData = container;
+			// Переинициализация контролов
+			controls = new THREE.OrbitControls(camera, renderer.domElement);
+			controls.enableDamping = true;
+			controls.dampingFactor = 0.05;
+			// Пересоздание сцены
+			generateView();
+			// setupScene();
+			// updateUI();
+			// adjustCamera();
+			// animate();			// Принудительный ререндер
+		}
+        
+
+
+
+
+  //  Отрисовка 3D Схема  
+
+
+
+
+		
+		
+		function setupScene() {
+            // Освещение и оси должны быть пересозданы
+			const ambientLight = new THREE.AmbientLight(0x404040);
+			scene.add(ambientLight);
+			const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+			directionalLight.position.set(1, 1, 1);
+			scene.add(directionalLight);
+			const axesHelper = new THREE.AxesHelper(100);
+			axesHelper.position.set(0, 0, 0);
+			scene.add(axesHelper);
+			// контейнер
+            const containerGeometry = new THREE.BoxGeometry(
+                containerData.length,
+                containerData.height,
+                containerData.width
+            );
+			const containerMaterial = new THREE.MeshPhongMaterial({ 
+				color: 0xffffff, // белый цвет лучше работает с прозрачностью
+				transparent: true,
+				opacity: 0.05, // почти полностью прозрачный
+				depthWrite: false,
+				side: THREE.DoubleSide, // отображаем обе стороны
+				wireframe: false
+			});			
+            const containerMesh = new THREE.Mesh(containerGeometry, containerMaterial);
+            containerMesh.position.set(
+                containerData.centerX,
+                containerData.centerZ,
+                containerData.centerY
+            );
+            scene.add(containerMesh);
+    		// Разделительная линия между половинками дверей
+			const doorGroup = new THREE.Group();
+			const dividerGeometry = new THREE.BufferGeometry().setFromPoints([
+				new THREE.Vector3(containerData.length, 0					, containerData.centerY),
+				new THREE.Vector3(containerData.length,	containerData.height, containerData.centerY)
+			]);
+			const dividerMaterial = new THREE.LineBasicMaterial({ color: 0x009900 });
+			const divider = new THREE.Line(dividerGeometry, dividerMaterial);
+			doorGroup.add(divider);
+			scene.add(doorGroup);			
+            // Дисбаланс масс
+            const edges = new THREE.EdgesGeometry(containerGeometry);
+            const line = new THREE.LineSegments(
+                edges,
+                new THREE.LineBasicMaterial({ color: 0x009900, linewidth: 1 })
+            );
+            line.position.copy(containerMesh.position);
+            scene.add(line);
+            // Рулоны размещенные
+            containerData.stacks.forEach(stack => {
+                stack.forEach(roll => {
+                    const cylinderGeometry = new THREE.CylinderGeometry(
+                        roll.diameter/2,
+                        roll.diameter/2,
+                        roll.height,
+                        32
+                    );
+                    const cylinderMaterial = new THREE.MeshPhongMaterial({ 
+                        color: new THREE.Color(roll.color),
+                        transparent: true,
+                        opacity: 0.5
+                    });
+                    const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+                    cylinder.position.set(
+                        roll.x, 
+                        roll.z,
+                        roll.y
+                    );
+                    cylinder.userData = roll;
+					scene.add(cylinder);
+                    // Roll outline
+                    //const rollEdges = new THREE.EdgesGeometry(cylinderGeometry);
+                    // const rollLine = new THREE.LineSegments(
+                        // rollEdges,
+                        // new THREE.LineBasicMaterial({ color: 0x999999, linewidth: 0.1 })
+                    // );
+                    // rollLine.position.copy(cylinder.position);
+                    // rollLine.rotation.copy(cylinder.rotation);
+					//scene.add(rollLine);
+					
+					// Создаем текст с параметрами рулона
+					const labelText = `${roll.id}: ${roll.height} - ${roll.weight}`;
+					//`${roll.id}:${Math.round(roll.x)}/${Math.round(roll.y)}/${Math.round(roll.z)}`; 
+					//`${roll.pId}-:${roll.height}/${roll.weight}`; 
+					const label = createRollLabel(labelText);
+					// Позиционируем над рулоном
+					label.position.set(
+						roll.x, 
+						roll.z+5+roll.height/2, // 10px над цилиндром (roll.s % 2 === 0 ? 1: -1 )
+						roll.y
+					);
+					scene.add(label); // Добавляем текст в сцену
+                });
+            });
+            // Container center (blue)
+            const centerGeometry = new THREE.SphereGeometry(6, 16, 16);
+            const centerMaterial = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
+            const centerMarker = new THREE.Mesh(centerGeometry, centerMaterial);
+            centerMarker.position.set(
+                containerData.centerX,
+                containerData.centerZ,
+                containerData.centerY
+            );
+            scene.add(centerMarker);
+            // Center of mass (red)
+            const cmGeometry = new THREE.SphereGeometry(9, 16, 16);
+            const cmMaterial = new THREE.MeshBasicMaterial({ color: 0xff3311 });
+            const cmMarker = new THREE.Mesh(cmGeometry, cmMaterial);
+            cmMarker.position.set(
+                containerData.centerOfMass.x,
+                containerData.centerOfMass.z,
+                containerData.centerOfMass.y
+            );
+            scene.add(cmMarker);
+            // Line between centers
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(
+                    containerData.centerX,
+                    containerData.centerZ,
+                    containerData.centerY
+                ),
+                new THREE.Vector3(
+                    containerData.centerOfMass.x,
+                    containerData.centerOfMass.z,
+                    containerData.centerOfMass.y
+                )
+            ]);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00FF00, linewidth: 1 });
+            const centerLine = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(centerLine);
+
+        }
+        function updateUI() {
+            // Container parameters
+            document.getElementById('container-length').textContent = containerData.length;
+            document.getElementById('container-width').textContent = containerData.width;
+            document.getElementById('container-height').textContent = containerData.height;
+            document.getElementById('container-weight').textContent = 
+                `${containerData.totalWeight} / ${containerData.maxWeight} кг`;
+            // Container center
+            document.getElementById('container-center-x').textContent = (containerData.centerX).toFixed(1);
+            document.getElementById('container-center-y').textContent = (containerData.centerY).toFixed(1);
+            document.getElementById('container-center-z').textContent = (containerData.centerZ).toFixed(1);
+            // Center of mass
+            document.getElementById('mass-center-x').textContent = containerData.centerOfMass.x.toFixed(1);
+            document.getElementById('mass-center-y').textContent = containerData.centerOfMass.y.toFixed(1);
+            document.getElementById('mass-center-z').textContent = containerData.centerOfMass.z.toFixed(1);
+            // Deviations
+            const deviationX = (containerData.centerOfMass.x - containerData.centerX);
+            const deviationY = (containerData.centerOfMass.y - containerData.centerY);
+            updateDeviationDisplay('deviation-x', deviationX, containerData.maxCMDeviationLength, containerData.centerX, containerData.backW  - containerData.frontW, containerData.maxKGDeviationLength);
+            updateDeviationDisplay('deviation-y', deviationY, containerData.maxCMDeviationWidth , containerData.centerY, containerData.rightW - containerData.leftW , containerData.maxKGDeviationWidth );
+            // Rolls count
+            const placedCount = containerData.stacks.reduce((sum, stack) => sum + stack.length, 0);
+            document.getElementById('placed-count').textContent = placedCount;
+            document.getElementById('unplaced-count').textContent = containerData.unplacedRolls.length;
+            // Placement errors
+            const errorList = document.getElementById('error-list');
+            errorList.innerHTML = '';
+            if (containerData.unplacedRolls.length === 0) {
+                errorList.innerHTML = '<div>Всё размещено!</div>';
+            } else {
+				errorList.innerHTML = '<div class="error">Не размещено:</div>';
+                containerData.unplacedRolls.forEach(roll => {
+                    const errorItem = document.createElement('div');
+                    errorItem.className = 'error-item';
+                    errorItem.innerHTML = `
+                        <strong>${roll.id}</strong>: <small>${roll.height}</small> ${roll.placementError}
+                    `;
+                    errorList.appendChild(errorItem);
+                });
+            }
+			// Расстояние до дверей
+			const doorDistance = containerData.calculateDoorDistance();
+			document.getElementById('door-distance').textContent = doorDistance === Infinity ? "Нет рулонов" : doorDistance.toFixed(1);			
+        }
+        function updateDeviationDisplay(elementId, deviation, maxDeviation, maxDeviationBycenter, deviationW, maxKGDeviation) {
+            const element = document.getElementById(elementId);
+            const deviationPercentW = Math.abs(deviationW / maxKGDeviation) * 100;
+            const deviationPercent = Math.abs(deviation / maxDeviation) * 100;
+            const spans = element.querySelectorAll('span'); // отклонение от центра
+            spans[0].textContent = deviation.toFixed(1); //в см
+            spans[1].textContent = maxDeviation; // допуск	
+            spans[2].textContent =  deviationW; // вариант по плечу  + " "+ ( maxDeviationBycenter===0 ? 0 : (containerData.totalWeight * deviation / maxDeviationBycenter).toFixed(1)); // в кг
+			spans[3].textContent =  maxKGDeviation;
+            element.className = 'deviation';
+            if (deviationPercent < 90 && deviationPercentW < 90) {
+                element.classList.add('normal');
+            } else if (deviationPercent <= 100 && deviationPercentW <= 100) {
+                element.classList.add('warning');
+            } else {
+                element.classList.add('critical');
+            }
+        }
+        function adjustCamera() {
+            const bbox = new THREE.Box3().setFromObject(scene);
+            const center = new THREE.Vector3(
+                (bbox.min.x + bbox.max.x) / 2,
+                (bbox.min.y + bbox.max.y) / 2,
+                (bbox.min.z + bbox.max.z) / 2
+            );
+            const size = bbox.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            let distance = maxDim / (2 * Math.tan(fov / 2));
+            camera.position.set(
+                center.x + distance * 0.5,
+                center.y + distance * 0.3,
+                center.z + distance * 0.7
+            );
+            controls.target.copy(center);
+            controls.update();
+            camera.far = distance * 3;
+            camera.updateProjectionMatrix();
+        }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+		function animate() {
+			requestAnimationFrame(animate);
+			if (controls) controls.update();
+			renderer.render(scene, camera);
+		}
+		// Подписи рулона
+		function createRollLabel(text) {
+			const canvas = document.createElement('canvas');
+			const context = canvas.getContext('2d');
+			const fontSize = 18;
+			// Измеряем ширину текста
+			context.font = `${fontSize}px Arial`;
+			const textWidth = context.measureText(text).width;
+			// Устанавливаем размеры canvas
+			canvas.width = textWidth + 20;
+			canvas.height = fontSize + 10;
+			// Рисуем фон
+		//    context.fillStyle = 'rgba(200, 200, 200, 0.5)';
+		//    context.fillRect(0, 0, canvas.width, canvas.height);
+			// Рисуем текст
+			context.font = `${fontSize}px Arial`;
+			context.fillStyle = '#AA6600';
+			context.textAlign = 'center';
+			context.textBaseline = 'smol'; //  middle
+			context.fillText(text, canvas.width / 2, canvas.height / 2);
+			// Создаем текстуру
+			const texture = new THREE.CanvasTexture(canvas);
+			const material = new THREE.SpriteMaterial({ 
+				map: texture,
+				transparent: true
+			});
+			// Создаем спрайт
+			const sprite = new THREE.Sprite(material);
+			sprite.scale.set(canvas.width * 0.5, canvas.height * 0.5, 1);
+			return sprite;
+		}
+		// Глобальные переменные
+		let nextRollId = 1;
+		let rollSets = [];
+		// Функция для создания рулонов на основе настроек
+		function createRollsFromSets() {
+			const rolls = [];
+			let id = 1;
+			rollSets.forEach(set => {
+				for (let i = 0; i < set.count; i++) {
+					rolls.push(new Roll(id++, set.height, set.diameter, set.weight));
+				}
+			});
+			return rolls;
+		}
+		// Функция добавления нового набора рулонов
+		function addRollSet(height = 88, diameter = 90, weight = 800, count = 1) {
+			const rollSetsContainer = document.querySelector('#rolls-settings');
+			const rollSetTemplate = `
+				<div class="roll-set">
+					<div class="setting-row">
+						<label>Ф(см):</label>
+						<input class="roll-height" min="1" step="1" value="${height}" type="number" >
+					</div>
+					<div class="setting-row">
+						<label>d(см):</label>
+						<input  class="roll-diameter" min="1" step="1" value="${diameter}" type="number" >
+					</div>
+					<div class="setting-row">
+						<label>Вес(кг):</label>
+						<input  class="roll-weight" min="1" step="1" value="${weight}" type="number" >
+					</div>
+					<div class="setting-row">
+						<label>Шт:</label>
+						<input  class="roll-count" min="1" step="1" value="${count}" type="number" >
+					</div>
+					<button class="remove-roll-set" title="Удалить">X</button>
+				</div>
+			`;
+			const tempDiv = document.createElement('div');
+			tempDiv.innerHTML = rollSetTemplate;
+			const newSet = tempDiv.firstElementChild;
+			// Вставка перед кнопкой "Добавить набор"
+			rollSetsContainer.insertAdjacentElement('beforeend', newSet);
+			// Обработчик удаления
+			newSet.querySelector('.remove-roll-set').addEventListener('click', function() {
+				newSet.remove();
+			});
+		}
+		// Загрузка рулонов
+		function loadRolls() {
+			// Собираем все наборы
+			rollSets = [];
+			document.querySelectorAll('.roll-set').forEach(setEl => {
+				rollSets.push({
+					height: parseFloat(setEl.querySelector('.roll-height').value),
+					diameter: parseFloat(setEl.querySelector('.roll-diameter').value),
+					weight: parseFloat(setEl.querySelector('.roll-weight').value),
+					count: parseInt(setEl.querySelector('.roll-count').value)
+				});
+			});
+			// Обновляем рулоны
+			rolls = createRollsFromSets();
+			// Пересоздаем контейнер
+			initContainer();
+		}
+
+		// Создание набора рулонов
+		function createSampleRolls() {
+			return createRollsFromSets();
+		}
+  
+  
+  
+		//  Отрисовка 2D Схема  
+  
+		const offset2D = 15;
+		
+		// Скрипт для отрисовки SVG
+		function renderViews() {
+			const viewsContainer = document.getElementById('views-container');
+			viewsContainer.innerHTML=""; // очистим схем 2D
+			// Вид сверху
+			const topView = document.createElement('div');
+			topView.className = 'print-container';
+			const topSvg = createSvgElement('svg', {
+				width: containerData.length+offset2D*2,
+				height: containerData.width+offset2D*2,
+				viewBox: '0 0 '+(containerData.length+offset2D*2)+' '+(containerData.width+offset2D*2)
+			});
+			drawTopView(topSvg);
+			topView.appendChild(topSvg);
+			viewsContainer.appendChild(topView);
+			
+			// Вид с форнта
+			const FrontView = document.createElement('div');
+			FrontView.className = 'print-container';
+			//FrontView.innerHTML = '<h3>Вид сверху</h3>';
+			const FrontSvg = createSvgElement('svg', {
+				width: containerData.length+offset2D*2,
+				height: containerData.height+offset2D*2,
+				viewBox: '0 0 '+(containerData.length+offset2D*2)+' '+(containerData.height+offset2D*2)
+			});
+			drawFrontView(FrontSvg);
+			FrontView.appendChild(FrontSvg);
+			viewsContainer.appendChild(FrontView);
+			
+			// Виды с торцов
+			const sideViews = document.createElement('div');
+			sideViews.className = 'print-container';
+			//sideViews.innerHTML = '<h3>Виды с торцов</h3>';
+			
+			// Вид с торца (двери)
+			const doorSvg = createSvgElement('svg', {
+				width: containerData.width + offset2D*2,
+				height: containerData.height + offset2D*2,
+				viewBox: '0 0 '+(containerData.width + offset2D*2)+' '+(containerData.height + offset2D*2)
+			});
+			drawDoorView(doorSvg);
+			sideViews.appendChild(doorSvg);
+			
+			// Вид с противоположного торца
+			const rearSvg = createSvgElement('svg', {
+				width: containerData.width + offset2D*2,
+				height: containerData.height + offset2D*2,
+				viewBox: '0 0 '+(containerData.width + offset2D*2)+' '+(containerData.height + offset2D*2)
+			});
+			drawRearView(rearSvg);
+			sideViews.appendChild(rearSvg);
+			
+			viewsContainer.appendChild(sideViews);
+		}
+		
+		// Функция для создания SVG-элемента
+		function createSvgElement(tag, attrs) {
+			const elem = document.createElementNS("http://www.w3.org/2000/svg", tag);
+			for (const [key, value] of Object.entries(attrs)) {
+				elem.setAttribute(key, value);
+			}
+			return elem;
+		}
+
+		// Текст
+		function drawTextSVG(svg, txt ,x, y) {
+			const textElem = createSvgElement('text', {	x: x, y: y,class: 'dim-text','text-anchor': 'middle'});
+			textElem.textContent = txt;
+			svg.appendChild(textElem);
+		}
+		// Отрисовка вида сверху
+		function drawTopView(svg) {
+			drawTextSVG(svg, "Вид сверху:", offset2D*10, 0 );
+			// Контейнер
+			const container = createSvgElement('rect', {
+				x: offset2D,
+				y: offset2D,
+				width: containerData.length,
+				height: containerData.width,
+				class: 'container-rect'
+			});
+			svg.appendChild(container);
+			
+			// Рулоны
+			nn=0;
+			containerData.stacks.sort((a, b) => a[0].x - b[0].x).forEach(stack => {
+				stack.forEach(roll => {
+					const circle = createSvgElement('circle', {
+						cx: offset2D + roll.x,
+						cy: offset2D + roll.y,
+						r: roll.diameter / 2,
+						class: 'roll-circle'
+					});
+					svg.appendChild(circle);
+					drawTextSVG(svg, ''+ (++nn) + ': '+ +roll.height, offset2D + roll.x, offset2D + roll.y - (roll.s-2)*20 - 10) // +" - "+roll.weight
+				});
+			});
+			
+			// Оси и подписи
+			drawAxis(svg, offset2D, offset2D, containerData.length, containerData.width, 'X (Длина)', 'Y (Ширина)');
+		}
+		// Отрисовка вида спереди
+		function drawFrontView(svg) {
+			drawTextSVG(svg, "Вид спереди:", offset2D*10, 0 );
+			// Контейнер
+			const container = createSvgElement('rect', {
+				x: offset2D,
+				y: offset2D,
+				width: containerData.length,
+				height: containerData.height,
+				class: 'container-rect'
+			});
+			svg.appendChild(container);
+			
+			// Рулоны
+			nn=0;
+			containerData.stacks.sort((a, b) => a[0].x - b[0].x).forEach(stack => {
+				stack.forEach(roll => {
+					const y = offset2D + containerData.height - (roll.z + roll.height / 2)
+						, x = offset2D + roll.x - roll.diameter / 2 ;
+					// Рулоны представлены прямоугольниками (вид сбоку)
+					const rect = createSvgElement('rect', {
+						x: x,
+						y: y,
+						width: roll.diameter,
+						height: roll.height,
+						class: 'roll-rect'
+					});
+					svg.appendChild(rect);
+					drawTextSVG(svg, ''+ (++nn) + ': '+ roll.height, x+roll.diameter / 2 , y + roll.height / 2 + roll.y/5 - 10 ); // смещение по Y 
+				});
+			});
+			
+			// Оси и подписи
+			drawAxis(svg, offset2D, offset2D, containerData.length, containerData.height, 'X (Длина)', 'Z (Высота)');
+		}
+		
+		// Отрисовка вида со стороны двери
+		function drawDoorView(svg) {
+			drawTextSVG(svg, "Вид от двери:", offset2D*10, offset2D );
+			// Контейнер
+			const container = createSvgElement('rect', {
+				x: offset2D,
+				y: offset2D,
+				width: containerData.width,
+				height: containerData.height,
+				class: 'container-rect'
+			});
+			svg.appendChild(container);
+			// Рулоны
+			nn=0;
+			containerData.stacks.sort((a, b) => a[0].x - b[0].x).forEach(stack => {
+				stack.forEach(roll => {
+					const y = offset2D + containerData.height - (roll.z + roll.height / 2)
+						, x = offset2D + (containerData.width - roll.y) - roll.diameter / 2 ;
+					// Рулоны представлены прямоугольниками (вид сбоку)
+					const rect = createSvgElement('rect', {
+						x: x,
+						y: y,
+						width: roll.diameter,
+						height: roll.height,
+						class: 'roll-rect'
+					});
+					svg.appendChild(rect);
+					drawTextSVG(svg, ''+ (++nn) + ': '+ roll.height, x+20 , y + roll.height - (containerData.length - roll.x)/10 + 20 ); //  
+				});
+			});
+			
+			// Оси и подписи
+			drawAxis(svg, offset2D, offset2D, containerData.width, containerData.height, ' Y (Ширина)', 'Z (Высота)');
+		}
+		
+		// Отрисовка вида с противоположного торца
+		function drawRearView(svg) {
+			drawTextSVG(svg, "Вид с торца:", offset2D*10, offset2D );
+			// Контейнер
+			const container = createSvgElement('rect', {
+				x: offset2D,
+				y: offset2D,
+				width: containerData.width,
+				height: containerData.height,
+				class: 'container-rect'
+			});
+			svg.appendChild(container);
+			
+			// Рулоны (зеркальное отображение)
+			
+			const stacksOnX = containerData.stacks
+			stacksOnX.sort((a, b) => b[0].x - a[0].x);
+			stacksOnX.forEach(stack => {
+				stack.forEach(roll => {
+					const y = offset2D + containerData.height - (roll.z + roll.height / 2)
+						, x = offset2D + roll.y - roll.diameter / 2 ;
+					const rect = createSvgElement('rect', {
+						x: x,
+						y: y,
+						width: roll.diameter,
+						height: roll.height,
+						class: 'roll-rect'
+					});
+					svg.appendChild(rect);
+					drawTextSVG(svg, ''+ roll.height, x + roll.diameter / 2, y + roll.height - (roll.x)/10 + 12); //+ (++nn) + ': '+
+				});
+			});
+			
+			// Оси и подписи
+			drawAxis(svg, offset2D, offset2D, containerData.width, containerData.height, 'Y (Ширина)', 'Z (Высота)');
+		}
+		
+		// Отрисовка осей и подписей
+		function drawAxis(svg, x, y, width, height, xLabel, yLabel) {
+			// Ось X
+			const xAxis = createSvgElement('line', {
+				x1: x,
+				y1: y + height,
+				x2: x + width,
+				y2: y + height,
+				class: 'axis'
+			});
+			svg.appendChild(xAxis);
+			
+			// Ось Y
+			const yAxis = createSvgElement('line', {
+				x1: x,
+				y1: y,
+				x2: x,
+				y2: y + height,
+				class: 'axis'
+			});
+			svg.appendChild(yAxis);
+
+			
+			// Размерные линии
+			drawDimension(svg, x, y + height, x + width, y + height	, 0 , offset2D	, ''+xLabel+' '+width +' см ');
+			drawDimension(svg, x + width, y, x + width, y + height	, offset2D, 0, ''+yLabel+' '+height+' см ');
+		}
+		
+		// Отрисовка размерных линий
+		function drawDimension(svg, x1, y1, x2, y2, offsetx, offsety, text) {
+			// Основная линия
+			const line = createSvgElement('line', {
+				x1: x1 + offsetx,
+				y1: y1 + offsety,
+				x2: x2 + offsetx,
+				y2: y2 + offsety,
+				class: 'dim-line'
+			});
+			svg.appendChild(line);
+			
+			// Выноски
+			const ext1 = createSvgElement('line', {
+				x1: x1,
+				y1: y1,
+				x2: x1 + offsetx,
+				y2: y1 + offsety,
+				class: 'dim-line'
+			});
+			svg.appendChild(ext1);
+			
+			const ext2 = createSvgElement('line', {
+				x1: x2,
+				y1: y2,
+				x2: x2 + offsetx,
+				y2: y2 + offsety,
+				class: 'dim-line'
+			});
+			svg.appendChild(ext2);
+			
+			// Текст
+			const textElem = createSvgElement('text', {
+				x: offsetx===0 ? (x1 + x2) / 2 : x1 + offsetx,
+				y: offsety===0 ? (y1 + y2) / 2 : y1 + offsety,
+				class: 'dim-text',
+				'text-anchor': 'middle',
+				'transform': offsety===0 ? 'rotate(-90, ' + (x1 + 1.5*offsetx) + ', ' + (y1 + y2 / 2) + ')' : ''
+			});
+			textElem.textContent = text;
+			svg.appendChild(textElem);
+		}
+
+		// Функция для создания SVG-элемента
+		function createSvgElement(tag, attrs) {
+			const elem = document.createElementNS("http://www.w3.org/2000/svg", tag);
+			for (const [key, value] of Object.entries(attrs)) {
+				elem.setAttribute(key, value);
+			}
+			return elem;
+		}
+
+		// Функция генерации печатных видов
+		function generatePrintView() {
+			document.getElementById('panel2D').style.visibility='visible';
+			renderViews();
+		}
+		// Загрузка рулонов
+		function moreOptimizeBalance() {
+			//document.getElementById('more-optimize').removeEventListener('click',moreOptimizeBalance);
+			containerData.optimizeBalance();
+			generateView();
+		}
+		// Пересоздание сцены
+		function generateView() {
+			document.getElementById('panel2D').style.visibility='hidden';
+			
+			// Корректная очистка сцены
+			while(scene.children.length > 0) { 
+				const obj = scene.children[0];
+				if (obj.geometry) obj.geometry.dispose();
+				if (obj.material) obj.material.dispose();
+				scene.remove(obj); 
+			}
+			setupScene();
+			updateUI();
+			adjustCamera();
+			// Принудительный ререндер
+			animate();
+			//alert("Готово!");
+		}
+
+		function offPrintView () {
+			document.getElementById('panel2D').style.visibility='hidden';
+		}
+		// Инициализация настроек рулонов
+		function initRollSettings() {
+			// Добавляем обработчики
+			document.getElementById('add-roll-set').addEventListener('click', function() {
+				if (document.querySelector('.roll-set')===null) addRollSet(100, 120, 854, 30);
+				else {
+					const p = 0.000755; // средняя плотность бумаги рулона
+					const h = parseFloat(document.querySelector('.roll-set').querySelector('.roll-height').value);
+					const d = parseFloat(document.querySelector('.roll-set').querySelector('.roll-diameter').value);
+					const k = parseFloat(document.querySelector('.roll-set').querySelector('.roll-count').value);
+					const w = parseInt(3.14*d*d*h*p/4); //parseFloat(document.querySelector('.roll-set').querySelector('.roll-weight').value),
+					addRollSet(h,d,w,k);
+				}	
+			});
+			document.getElementById('generate-rolls').addEventListener('click',  loadRolls);
+			document.getElementById('more-optimize').addEventListener('click', moreOptimizeBalance);
+			document.getElementById('print-3d').addEventListener('click', offPrintView);
+			document.getElementById('print-2d').addEventListener('click', generatePrintView);
+
+			// Добавляем начальный набор
+			addRollSet(98, 90, 470, 16);
+			addRollSet(96, 90, 460, 12);
+			addRollSet(95, 90, 456, 2);
+			addRollSet(93, 90, 446, 2);
+			addRollSet(90, 90, 432, 16);
+			addRollSet(88, 90, 422, 15);
+			//loadRolls();
+		}
+
+		init();
+    </script>
+</body>
+</html>

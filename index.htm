@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="./style.css" rel="stylesheet" type="text/css" />
+<title>Оптимус v20 - Оптимизация размещения рулонов - СЦР Сегежа</title>
+<meta name="author" content="Болотов Андрей Александрович">
+<meta name="description" content="Обновления:
+1. тип ТС Контейнер
+2. Гексагональная, жадная упаковка вокруг динамического центра dim
+3. 3D визуализация
+4. 2D визуализация
+5. Упоры как переворачивание стопки (опускания для последних при расстановке рулонов верхнего ряда)
+6. Настроить перестановку рулонов для минимизации дисбаланса
+6.1 Уточнить деление на половинки по части рулона не линейно, а пропорционально пложщди сегмента круга, а значит деление веса точнее
+6.2 Адаптация для разных даметров, стопки только одного диаметра
+6.3 Обший вес и дисбаланс веса считает правильно 
+7.1 Хранение указанных пользователем данных и восстановление их при отрытии 
+7.2 Интерактивный сдвиг позиции рулона в схеме вида сверху
+7.3 Разноцветные группы рулонов
+7.4 Интерактивный сдвиг позиции рулона в 3D схеме
+7.5 сдвиг всех позиций продольно (X) ползунком влево и вправо до лини отступа от дверей 
+8.1 Shift+сдвиг всех правее
+8.2 централизация нечетного крайнего в верхнем ряду рулона для лучшего баланса по ширине
+8.3 разные диаметры в одно ТС
+8.4 варианты позиций ранее расчитанных для перетаскивания
+8.5 случайные наборы рулонов
+9.1 случайный выбор вариантов ветвления с закреплением для следующих рядов для симметрии расположения
+9.2 Ctrl+сдвиг всей стопки
+9.3 ветвление расстановки рулона в ширину (два касания рулона+стенки или рулон+рулон как точки ветвления и набора вариантов для последующей минимизации дисбаланса)
+9.4 перенос на рулон
+9.5 итог веса и цвета набора
+10.1	сохранять, скачивать, загружать Схемы и восстанавливать из нее все параметры
+10.2	печатная форма
+11		типы ТС (Авто, Вагон)
+12		планирование схем размещения на цепочку ТС (контейнерный поезд), по списку наборов груза и списку ТС, формировать оптимальное деление груза по ТС
+12.5	правки интерфейса и кода
+12.6	размещение лишнего груза не рядом а в след. ТС
+12.7	центровать и с нижнего слоя на верхний
+12.8	оптимизация сложных составов ТС
+12.9	Перенос рулолна из ТС в ТС
+14 рулоны с id показать только от первого ТС в групе одинаковых схем (ручное изменение для всех ТС из группы)
+15 автосохранение и автозагрузка схем
+16 импорт из таблиц
+17 вариант размещения ворот ТС, как у вагона, посередине
+18 проверить упор рулонов от двери до стены
+19 опция выравнивнаия, после Альт+свиг мышкой справа от него и до двери престроить рулоны
++ по Альт.переносе мозможно нарушение об.контейнера при в формировании поз. при малом радиусе, лечится перключением типа ТС, разобраться!!! до двери меняется по Альт! 
++ не стало перносить между контейнерами!
++ Двойной клик - прилипание рулона к соседям
+20
+- проверить перетаскивание мышью, разное поведение в 1D и 2D ?!
+
+"> 
+</head>
+<body id="body" >
+	<div id="train-view" >
+		<div id="train-controls">
+<button id="save-scheme"		title="Сохранить схему на сервер...">⤓</button><button id="load-from-server"	title="Загрузить схему с сервера...">↥</button>
+<button id="prev-container"		title="Предыдущий...">‹</button><span	id="current-container-info">ТС 1/1</span><button id="next-container" title="Следующий...">›</button>
+<button id="add-container"		title="Добавить еще ТС...">+</button><button id="remove-container"	title="Удалить ТС!">-</button>
+			<div class="container-metrics" id="train-info" >
+			</div>
+		</div>	
+	</div>
+	<div id="train-overview" >
+		<svg id="train-svg" width="1980" height="25"></svg>
+	</div>
+    <div id="train-list-view" class="panel1D">
+		<div id="views-container-list"></div>
+    </div>
+    <div id="panel2D" class="panel2D">
+		<div id="views-container"></div>
+    </div>
+    <div id="container-settings">
+		<div class="setting-row">
+			<button id="print-1d"		title="вид на список ТС"			>ТС</button>
+			<button id="print-2d"		title="переключить на плоский вид"	>2D</button>
+			<button id="print-3d"		title="переключить на объёмный вид"	>3D</button>
+			<button id="print-Train" 	title="Печать схемы">📻</button>
+			<button id="update-container" title="изменить загрузку для новых параметров ТСа">⇒</button>
+		</div>
+		<div class="setting-row">
+			<label>ТС тип:
+				<select id="ts-type" onchange="loadTsParams()">
+					<option value="Свой">Свой</option>
+				</select>
+			</label>
+		</div>
+		<div class="setting-row">			
+            <label>макс.вес груза:<input 			id="maxW"		value="25500"	min="1000"	max="99000"	step="100"	type="number" name="container-maxW"> кг</label>
+            <label><input name="container-H" 		id="H"			value="259"		min="200"	max="300"	step="1"	type="number" > см высота</label>
+        </div>
+		<div class="setting-row">			
+            <label><input name="container-L"		id="L"			value="1203"	min="3000"	max="2000"	step="1"	type="number" > см длина</label>
+        </div>
+		<div class="setting-row"> допуск:			
+            <label><input name="container-maxCML"	id="maxCML"		value="30"		min="1"		max="100"	step="1" 	type="number" > см	</label>
+            <label><input name="container-maxKGL"	id="maxKGL"		value="1500"	min="1"		max="5000"	step="10"	type="number" > кг	</label>
+		</div>
+		<div class="setting-row">			
+            <label><input name="container-T"		id="T"			value="235"		min="100"	max="300"	step="1"	type="number" > см ширина</label>
+        </div>
+		<div class="setting-row"> допуск:			
+            <label><input name="container-maxCMT"	id="maxCMT" 	value="10"		min="1"		max="100"	step="1"	type="number" > см	</label>
+            <label><input name="container-maxKGT"	id="maxKGT" 	value="500"		min="1"		max="2000"	step="10"	type="number" > кг	</label>
+		</div>
+        <div class="setting-row">
+			<label><input name="container-minCMDoor"id="minCMDoor"	value="50"		min="0"		max="100"	step="10"	type="number" > см от двери</label>
+			<label><input name="container-minDimX"	id="minDimX"	value="25"		min="-300"	max="1000"	step="10"	type="number" > см к двери	</label>
+		</div>
+    </div>
+    <div id="info-panel">
+        <span>Информация о схеме (см)</span>
+        <div class="metric">Длина(X):<span id="container-L"></span></div>
+        <div class="metric">Ширина(Y):<span id="container-T"></span></div>
+        <div class="metric">Высота(Z):<span id="container-H"></span></div>
+        <div class="metric">Вес: <span id="container-W"></span></div>
+        <div class="metric">Центр ТСа(см):
+            <div>X: <span id="container-center-x"></span></div>
+            <div>Y: <span id="container-center-y"></span></div>
+            <div>Z: <span id="container-center-z"></span></div>
+        </div>
+        <div class="metric">Центр масс груза(см):
+            <div>X: <span id="mass-center-x"></span></div>
+            <div>Y: <span id="mass-center-y"></span></div>
+            <div>Z: <span id="mass-center-z"></span></div>
+        </div>
+		<div class="slider-container">
+			Плотно<input name="CrossStyle" id="CrossStyle" value="1" title="при мин.D < 94 лучше ставить более плотно" type="checkbox">
+			<div>
+				Сдвиг груза вдоль см: <span id="slider-value">0</span>
+			</div>
+			<input type="range" id="rolls-slider" min="-500" max="500" value="0" step="1">
+        </div>
+		<div class="metric">
+			Дисбаланс (допуск)<br>
+            <div id="deviation-x1" class="deviation">см по длине :	<span></span> (<span></span>) </div>
+            <div id="deviation-xW" class="deviation">кг кон.-нач.:	<span></span> (<span></span>) </div>
+            <div id="deviation-y1" class="deviation">см по ширине:	<span></span> (<span></span>)</div>
+            <div id="deviation-yW" class="deviation">кг лев.-пр. :	<span></span> (<span></span>)</div>
+        </div>
+		<div class="metric">Расстояние до дверей: <span id="door-distance"></span> см</div>
+        <div class="metric">Размещено: <span id="placed-count"></span></div>
+        <div class="metric">Не размещено: <span id="unplaced-count"></span></div>
+		<div id="error-panel">
+			<div id="error-list"></div>
+		</div>
+	</div>
+	<div id="rolls-settings">
+		<button id="generate-rolls"  	title="Погрузка данного набора рулонов...">⇐</button>
+		<button id="download-scheme"	title="Скачать схему загрузки"	>⇓</button>
+		<button id="load-scheme"		title="Загрузить схему"			>⇑</button>
+		<input id="scheme-file"		type="file"  accept=".json" style="display: none;">
+		<button id="excel"	onclick="document.getElementById('excel-import').click()" class="btn" title="Загрузить рулоны из таблицы Эксель">.xls</button>
+		<input id="excel-import"	type="file" accept=".xlsx,.xls" style="display: none;">
+		<button id="print-scheme"	title="Печать схемы">📻</button>
+		<button class="add-roll-set" id="random-rolls"  title="Заменить на случайные наборы рулонов...">-/+</button>
+		<br>
+		<span>
+			Груз вес: <span id="rolls-W" class="colorW"></span>
+			<button class="add-roll-set" id="add-roll-set" title="Добавить копию верхнего набора...">+</button>
+		</span>
+	</div>
+    <div id="controls">
+        <div>
+			Мышь:колесо-3D масштаб<br/>
+			ЛК-вращение, сдвиг рулона<br/>
+			Shift+сдвиг стопки<br/>
+			Ctrl+сдвиг всех правее<br/>
+			Alt+перенос всех правее<br/>
+			Дв.клик - прилипание<br/>
+			cвободный сдвиг<input name="FreeStyle"	id="FreeStyle" checked	value="1" title="перемещения рулона без привязки к расч. позиции..." type="checkbox">
+		</div>
+    </div>
+    <div id="copyr">
+		Оптимус <a href="/12/">v12.8</a> - Оптимизация размещения рулонов - &copy;2025 SG СЦР г.Сегежа 
+		<button id="more-optimize"	title="продолжить оптимизацию">⚖</button>
+    </div>
+	<div id="scheme-modal">
+		<div>
+			<h3>Выберите схему для загрузки</h3>
+			<div id="scheme-list" ></div>
+			<button id="close-modal" >Закрыть</button>
+		</div>
+	</div>
+<script src="./xlsx.full.min.js"></script> <!-- Подключаем библиотеку SheetJS (xlsx) в HTML -->
+<script src="./lib.min.js"></script>
+<script src="./models.js"></script>
+<script src="./controllers.js"></script>
+<script src="./views.js"></script>
+</body>
+</html>
