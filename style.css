@@ -103,87 +103,12 @@ button:hover {background:#ff9900}
 #create-new-container { width: 100%; margin-top: 10px; background: #4caf50; }
 #toggle-view { background: #2196F3; margin-right: 5px; }  
 .list-mode #container-settings, .list-mode #info-panel, .list-mode #panel2D { display: none !important;}
-/* Список ТС - горизонтальный скролл */
-#train-list-view {
-    position: absolute;
-    bottom: 40px;
-    left: 230px;
-    right: 10px;
-    height: 80px;
-    overflow-x: auto;
-    white-space: nowrap;
-    background: rgba(255,255,255,0.95);
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    padding: 5px;
-}
-
-/* Градиенты по краям для индикации прокрутки */
-#train-list-view::before,
-#train-list-view::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 30px;
-    pointer-events: none;
-    z-index: 1;
-}
-
-#train-list-view::before {
-    left: 0;
-    background: linear-gradient(to right, rgba(255,255,255,0.95), transparent);
-}
-
-#train-list-view::after {
-    right: 0;
-    background: linear-gradient(to left, rgba(255,255,255,0.95), transparent);
-}
-
-/* Карточка ТС */
-.train-container-view {
-    display: inline-block;
-    white-space: normal;
-    margin: 0 5px;
-    padding: 5px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    vertical-align: top;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    touch-action: none;
-    min-width: 150px;
-    max-width: 200px;
-}
-
-.train-container-view.active {
-    border: 2px solid #4CAF50;
-    background-color: rgba(76, 175, 80, 0.1);
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
-}
-
-.train-container-view:hover {
-    background-color: rgba(76, 175, 80, 0.05);
-}
-
-/* Стилизация полосы прокрутки (WebKit) */
-#train-list-view::-webkit-scrollbar {
-    height: 8px;
-}
-
-#train-list-view::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-#train-list-view::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-}
-
-#train-list-view::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
+.list-mode #train-list-view {    display: block !important;}
+.train-container-view { display: flex; flex-wrap: wrap; gap: 0px; margin: 0; padding: 0px; /* display: inline-block; margin: 10px; padding: 10px; */
+border: 1px solid #ddd; border-radius: 5px; vertical-align: top; 
+cursor: pointer; transition: all 0.2s ease; touch-action: none; /* Отключает стандартные жесты касания */}
+.train-container-view.active {border: 2px solid #4CAF50;background-color: rgba(76, 175, 80, 0.1);box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);}
+.train-container-view:hover {background-color: rgba(76, 175, 80, 0.05);}
 .container-info { margin-top: 10px; text-align: center; font-size: 14px; }  
 .roll-circle { cursor: grab; }  
 .roll-circle.dragging { stroke: #0000FF; stroke-width: 2; cursor: grabbing; } 
