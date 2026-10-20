@@ -4,7 +4,7 @@
 <meta http-equiv="content-type" content="text/html; charset=utf-8">
 <meta http-equiv="Cache-Control" content="no-cache">
 <link href="./style.css" rel="stylesheet" type="text/css" />
-<title>Оптимус v21 - Оптимизация размещения рулонов - СЦР Сегежа</title>
+<title>Оптимус v25 - Оптимизация размещения рулонов - СЦР Сегежа</title>
 <meta name="author" content="Болотов Андрей Александрович">
 <meta name="description" content="Обновления:
 1. тип ТС Контейнер
@@ -50,6 +50,9 @@
 + не стало перносить между контейнерами!
 + Двойной клик - прилипание рулона к соседям
 20 перетаскивание мышью в 1D и 2D !
+23 ИБ 
+24 Модель укладки: плотный «Ромб», отключённый зажим в ромбе, пересчёт при переключении.
+25 «Ромб» (вкл = Ромб, по умолчанию вкл) и «Чётный» (вкл = широкий первый ряд 2-1-2-1) перенесены в панель рядом с «Плотно»; добавлены «Авто» (автосдвиг под минимум дисбаланса).
 "> 
 </head>
 <body id="body" >
@@ -76,8 +79,9 @@
 			<button id="print-1d"		title="вид на список ТС"			>ТС</button>
 			<button id="print-2d"		title="переключить на плоский вид"	>2D</button>
 			<button id="print-3d"		title="переключить на объёмный вид"	>3D</button>
-			<button id="print-Train" 	title="Печать схемы">📻</button>
+			<button id="print-Train" 	title="Печать схемы">🖶</button>
 			<button id="update-container" title="изменить загрузку для новых параметров ТСа">⇒</button>
+			<button id="more-optimize"	title="продолжить оптимизацию">...</button>
 		</div>
 		<div class="setting-row">
 			<label>ТС тип:
@@ -126,11 +130,15 @@
             <div>Z: <span id="mass-center-z"></span></div>
         </div>
 		<div class="slider-container">
-			Плотно<input name="CrossStyle" id="CrossStyle" value="1" title="при мин.D < 94 лучше ставить более плотно" type="checkbox">
+			cвободный перенос<input name="FreeStyle" id="FreeStyle" checked value="1" title="перемещения рулона без привязки к расч. позиции..." type="checkbox"><br />
+			плотно<input name="CrossStyle" id="CrossStyle" value="1" title="при мин.D < 94 лучше ставить более плотно" type="checkbox">
+			ромб<input name="RhombusStyle" id="RhombusStyle" checked value="1" title="Вкл: укладка Ромбом (плотная, ряды в гнёзда). Выкл: укладка Змейкой" type="checkbox">
+			чёт.<input name="EvenRowStyle" id="EvenRowStyle" value="1" title="Только для ромба: чётный первый ряд широкий (2-1-2-1). Без галки первым идёт узкий ряд (1-2-1-2)" type="checkbox">
 			<div>
-				Сдвиг груза вдоль см: <span id="slider-value">0</span>
+				авто<input name="AutoBalance" id="AutoBalance"  checked value="1" title="Автоматически подбирает сдвиг вдоль ТС для минимума дисбаланса груза по длине" type="checkbox">
+				сдвиг:<span id="slider-value" pos=3 >0</span>
+				<input type="range" id="rolls-slider" min="-500" max="500" value="0" step="1">
 			</div>
-			<input type="range" id="rolls-slider" min="-500" max="500" value="0" step="1">
         </div>
 		<div class="metric">
 			Дисбаланс (допуск)<br>
@@ -151,10 +159,10 @@
 		<button id="download-scheme"	title="Скачать схему загрузки"	>⇓</button>
 		<button id="load-scheme"		title="Загрузить схему"			>⇑</button>
 		<input id="scheme-file"		type="file"  accept=".json" style="display: none;">
-		<button id="excel"	onclick="document.getElementById('excel-import').click()" class="btn" title="Загрузить рулоны из таблицы Эксель">.xls</button>
+		<button id="excel"	onclick="document.getElementById('excel-import').click()" class="btn" title="Загрузить рулоны из таблицы Эксель">📊</button>
 		<input id="excel-import"	type="file" accept=".xlsx,.xls" style="display: none;">
-		<button id="print-scheme"	title="Печать схемы">📻</button>
-		<button class="add-roll-set" id="random-rolls"  title="Заменить на случайные наборы рулонов...">-/+</button>
+		<button id="print-scheme"	title="Печать схемы">🖶</button>
+		<button class="add-roll-set" id="random-rolls"  title="Заменить на случайные наборы рулонов...">🎲</button>
 		<br>
 		<span>
 			Груз вес: <span id="rolls-W" class="colorW"></span>
@@ -168,13 +176,12 @@
 			Shift+сдвиг стопки<br/>
 			Ctrl+сдвиг всех правее<br/>
 			Alt+перенос всех правее<br/>
-			Дв.клик - прилипание<br/>
-			cвободный сдвиг<input name="FreeStyle"	id="FreeStyle" checked	value="1" title="перемещения рулона без привязки к расч. позиции..." type="checkbox">
+			Дв.клик - прилипание
+			
 		</div>
     </div>
     <div id="copyr">
-		Оптимус <a href="/optimys/12.html">v12</a> - Оптимизация размещения рулонов - &copy;2025 SG СЦР г.Сегежа 
-		<button id="more-optimize"	title="продолжить оптимизацию">⚖</button>
+		Оптимус v <a href="index.html">α</a>, <a href="index.htm">β</a> - Оптимизация размещения рулонов - &copy;2026 SG СЦР г.Сегежа 
     </div>
 	<div id="scheme-modal">
 		<div>
@@ -183,10 +190,10 @@
 			<button id="close-modal" >Закрыть</button>
 		</div>
 	</div>
-<script src="js/xlsx.full.min.js"></script> <!-- Подключаем библиотеку SheetJS (xlsx) в HTML -->
-<script src="lib.min.js"></script>
-<script src="views.js"></script>
-<script src="models.js"></script>
-<script src="controllers.js"></script>
+<script src="./xlsx.full.min.js"></script> <!-- Подключаем библиотеку SheetJS (xlsx) в HTML -->
+<script src="./lib.min.js"></script>
+<script src="./models.js"></script>
+<script src="./controllers.js"></script>
+<script src="./views.js"></script>
 </body>
 </html>
