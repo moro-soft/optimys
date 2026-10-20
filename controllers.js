@@ -134,7 +134,32 @@ function sliderInput() {
 	wa.sliderValue.textContent = actualOffset.toFixed(1);
 	wa.generateView();
 	wa.oContainer.updateCenterOfMass();
-	updateUI();
+	wa.updateUI();
+}
+
+// fix: авто-подбор «Сдвига груза вдоль» под минимум дисбаланса по длине | 2026-10-09 | Моро
+function autoBalanceOffset() {
+	const container = wa.oContainer;
+	if (!container || container.rolls.length === 0) return 0;
+	let totalW = 0, cmX = 0;
+	container.rolls.forEach(roll => {
+		const originalPos = wa.originalRollPositions.get(roll.id);
+		const baseX = originalPos ? originalPos.x : roll.x;
+		totalW += roll.W;
+		cmX += baseX * roll.W;
+	});
+	if (totalW <= 0) return 0;
+	// смещение, обнуляющее дисбаланс по длине (см), с ограничением хода ползунка
+	let offset = container.centerX - cmX / totalW;
+	offset = Math.max(-500, Math.min(500, offset));
+	return offset;
+}
+
+function applyAutoBalance() {
+	const slider = document.getElementById('rolls-slider');
+	if (!slider) return;
+	slider.value = autoBalanceOffset();
+	sliderInput.call(slider);
 }
 
 function initDragControls() {
@@ -173,7 +198,7 @@ function initDragControls() {
 				wa.draggedRoll.label3D.position.copy(event.object.position);
 				wa.draggedRoll.label3D.position.y += wa.draggedRoll.H/2 + 5;
 				// Добавляем обновление масштаба метки
-				updateLabelScale(wa.draggedRoll.label3D, wa.camera);
+				wa.updateLabelScale(wa.draggedRoll.label3D, wa.camera);
 			}
 		}
 	});
@@ -223,7 +248,7 @@ function init3DDragControls() {
 						wa.draggedRoll.z = wa.originalPosition.z;
 						wa.update2DViews(wa.draggedRoll);
 						wa.oContainer.updateCenterOfMass();
-						updateUI();
+						wa.updateUI();
 					});
 					wa.draggedRoll = null;
 					return;
@@ -238,7 +263,7 @@ function init3DDragControls() {
 				wa.draggedRoll.z = closest.z;
 				wa.draggedRoll.s = closest.s;
 				// Обновляем 3D объект
-				const roll3D = findRoll3DObject(wa.draggedRoll.id);
+				const roll3D = wa.findRoll3DObject(wa.draggedRoll.id);
 				if (roll3D) {
 					roll3D.position.set(closest.pos.x, closest.z, closest.pos.y);
 					// Обновляем метку
@@ -248,7 +273,7 @@ function init3DDragControls() {
 							closest.z + wa.draggedRoll.H/2 + 5,
 							closest.pos.y
 						);
-						updateLabelScale(wa.draggedRoll.label3D, wa.camera);
+						wa.updateLabelScale(wa.draggedRoll.label3D, wa.camera);
 					}
 				}
 				// Анимация прилипания
@@ -260,7 +285,7 @@ function init3DDragControls() {
 					// Обновляем структуры данных ТСа
 					updateContainerAfterDrag(wa.draggedRoll, oldX, oldY, oldS);
 					wa.oContainer.updateCenterOfMass();
-					updateUI();
+					wa.updateUI();
 				});
 				return;
 			}
@@ -527,7 +552,7 @@ function endDrag(e) {
 		wa.oContainer.optimizedPlacement(wa.draggedRoll.x - wa.draggedRoll.R - wa.mm); // Передаем текущий X как начальную точку оптимизации	
 		// Обновляем представления
 		wa.generateView();
-		updateUI();
+		wa.updateUI();
         wa.draggedRoll = null;
         wa.isAltPressed = false;
 		return;
@@ -541,7 +566,7 @@ function endDrag(e) {
         // Обновляем все представления
         wa.updateAllViews(wa.draggedRoll);
         wa.oContainer.updateCenterOfMass();
-        updateUI();
+        wa.updateUI();
         clearHighlights();
         wa.isCtrlPressed = false;
         wa.isShiftPressed = false;
@@ -576,7 +601,7 @@ function endDrag(e) {
 		animateSnap(circle, targetX +  wa.offset2D, targetY +  wa.offset2D, () => {
 			wa.update2DViews(wa.draggedRoll);
 			wa.oContainer.updateCenterOfMass();
-			updateUI();
+			wa.updateUI();
 		});
 	} else {
 		if (!FreeStyle.checked) {
@@ -842,21 +867,30 @@ function createContainerControls(container) {
     // Обработчики событий
     wa.controls.querySelector('.btn-optimize').addEventListener('click', () => {
         container.optimizedPlacement();
-        generateTrainView();
-        updateUI();
+        wa.generateTrainView();
+        wa.updateUI();
     });
     
     wa.controls.querySelector('.btn-balance').addEventListener('click', () => {
         wa.currentTrain.balanceContainers(container);
-        generateTrainView();
-        updateUI();
+        wa.generateTrainView();
+        wa.updateUI();
     });
     
     return wa.controls;
 }
 
 
+// fix: Stored XSS — H/D/W/count подставлялись в шаблон через innerHTML как есть,
+//      а приходить они могли из JSON схемы или localStorage. Приводим к числу | 2026-10-05 | Моро
+// БЫЛО:
+// function addRollSet(H = 88, D = 90, W = 800, count = 1) {// добавления нового набора рулонов
+// 	const rollSetsContainer = document.querySelector('#rolls-settings');
 function addRollSet(H = 88, D = 90, W = 800, count = 1) {// добавления нового набора рулонов
+	H = schemeNum(H, 88);
+	D = schemeNum(D, 90);
+	W = schemeNum(W, 800);
+	count = schemeNum(count, 1);
 	const rollSetsContainer = document.querySelector('#rolls-settings');
 	const rollSetTemplate = 
 		`<div class="roll-set" onChange="calcWsetAll()" >
@@ -1075,7 +1109,14 @@ function loadSchemeFromFile(event) {// Загрузка схемы из файл
 
 async function loadSchemeFromServer(schemeName) {// Загрузка схемы с сервера
     try {
-        const response = await fetch( wa.url_service+`data/${schemeName}`);
+        // fix: имя схемы подставлялось в URL без экранирования —
+        //       символы /, ?, #, % меняли запрашиваемый путь | 2026-10-05 | Моро
+        // БЫЛО:
+        // const response = await fetch( wa.url_service+`data/${schemeName}`);
+        const safeName = String(schemeName);
+        if (!/^[A-Za-z0-9_.\-]+\.json$/.test(safeName)) throw new Error('Некорректное имя схемы');
+
+        const response = await fetch( wa.url_service+`data/${encodeURIComponent(safeName)}`);
         if (!response.ok) throw new Error('Схема не найдена');
         
         const scheme = await response.json();
@@ -1089,7 +1130,16 @@ async function loadSchemeFromServer(schemeName) {// Загрузка схемы 
 
 async function deleteSchemeFromServer(schemeName) {// Удаление схемы с сервера
     try {
-        const response = await fetch('delete_scheme.php', {
+        // fix: обращение к несуществующему delete_scheme.php — удаление не работало, 405 | 2026-10-05 | Моро
+        // БЫЛО:
+        // const response = await fetch('delete_scheme.php', {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //     },
+        //     body: JSON.stringify({ filename: schemeName })
+        // });
+        const response = await fetch( wa.url_service+'del_scheme.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1196,7 +1246,7 @@ async function updateTsIni(newParams) {// Обновление TS.ini через
         const result = await response.json();
         
         if (result.success) {
-            await wa.loadTsConfig(); // Перезагружаем конфиг
+            await loadTsConfig(); // Перезагружаем конфиг
             wa.populateTsSelector(); // Обновляем селектор
             return true;
         } else {
@@ -1243,9 +1293,11 @@ async function loadRolls() {	// грузим в в состав ТС
 		wa.renderTrainOverview(); // Первоначальная отрисовка
         wa.generateView();
 		wa.updateViewMode()
-        // 8. Обновляем UI и сохраняем позиции
+		// 8. Обновляем UI и сохраняем позиции
 		wa.updateUI();
         saveOriginalPositions();
+		// fix: если включено «Авто» — сразу выставляем сдвиг под минимум дисбаланса | 2026-10-09 | Моро
+		if (autoBalanceEnabled()) applyAutoBalance();
 		wa.hideLoadingProgress()
 		// 9. Показываем итоговую статистику
 		setTimeout(() => {

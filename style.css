@@ -31,7 +31,10 @@ canvas {display: block;}
 .normal {background-color:rgba(0,200,0,0.2)}
 .warning {background-color:rgba(255,165,0,0.2)}
 .critical {background-color:rgba(255,0,0,0.2)}
+/* БЫЛО:
 #controls {position:absolute;bottom:0px;left:auto;right:0px;color:rgba(51,51,51,0.5);width:200px;margin:auto;padding:10px;border-radius:5px}
+/* fix: нижнюю полосу экрана перекрывает svg поезда (#train-overview, z-index:100 и ширина 1980) и #copyr, поэтому галка «укладка Змейкой» была видна, но не кликалась — поднял панель выше | 2026-10-09 | Моро */
+#controls {position:absolute;bottom:0px;left:auto;right:0px;color:rgba(51,51,51,0.5);width:200px;margin:auto;padding:10px;border-radius:5px;z-index:150}
 input {text-align:right;}
 #maxCML, #maxCMT {width:30px;}
 #maxKGL, #maxKGT {width:50px;}
@@ -40,7 +43,10 @@ input {text-align:right;}
 #rolls-settings {position:absolute; top:10px; right:10px; background:rgba(255,255,255,0.9); padding:10px; border-radius:5px; box-shadow: 0 0 5px; rgba(0,0,0,0.2); max-width:180px; z-index:10; max-height:95%; overflow-y:auto}
 .roll-set {background:rgba(240,240,240,0.7);padding:0px;margin:10px;border-radius:5px;position:relative}
 .remove-roll-set {position:absolute;top:0px;right:-15px;background:#666;padding:2px 4px;font-size:10px}
+/* БЫЛО:
 #copyr {position:absolute; top:95%; left:40%; font-size:12px; color:rgba(51,105,51,0.6); margin:auto; max-height:auto; width:auto;}
+/* fix: копирайт перекрывал элементы управления под собой и ловил клики — отключаю перехват указателя | 2026-10-09 | Моро */
+#copyr {position:absolute; top:95%; left:40%; font-size:12px; color:rgba(51,105,51,0.6); margin:auto; max-height:auto; width:auto;pointer-events:none;}
 .slider-container {margin-top: 10px;color: #333;}
 #rolls-slider {width: 180px; vertical-align: middle;}
 #slider-value {display: inline-block;width: 50px;text-align: right;margin-left: 5px;}

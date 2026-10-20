@@ -64,6 +64,27 @@ async init() {// Начальная инициализация
 	window.addEventListener('resize', onWindowResize);
 	document.getElementById('update-container').addEventListener('click', wa.loadRolls);
 	document.getElementById('rolls-slider').addEventListener('input', sliderInput);
+	// fix: режим укладки (Ромб/Змейка) применяется сразу при переключении галки,
+	//      иначе расчёт менялся бы только после следующего нажатия «⇐» | 2026-10-05 | Моро
+	const rhombusStyleEl = document.getElementById('RhombusStyle');
+	if (rhombusStyleEl) rhombusStyleEl.addEventListener('change', function() {
+		if (createRollsFromSets().length > 0) wa.loadRollsCom();
+	});
+	// БЫЛО:
+	// const snakeStyleEl = document.getElementById('SnakeStyle');
+	// if (snakeStyleEl) snakeStyleEl.addEventListener('change', function() {
+	// 	if (createRollsFromSets().length > 0) wa.loadRollsCom();
+	// });
+	// fix: «Чётный» — сразу пересчитывает ромб (только когда активен Ромб) | 2026-10-09 | Моро
+	const evenRowStyleEl = document.getElementById('EvenRowStyle');
+	if (evenRowStyleEl) evenRowStyleEl.addEventListener('change', function() {
+		if (createRollsFromSets().length > 0 && rhombusStyleEnabled()) wa.loadRollsCom();
+	});
+	// fix: «Авто» для сдвига — при включении сразу балансируем состав | 2026-10-09 | Моро
+	const autoBalanceEl = document.getElementById('AutoBalance');
+	if (autoBalanceEl) autoBalanceEl.addEventListener('change', function() {
+		if (this.checked) applyAutoBalance();
+	});
 
 	// для клавиши Shift
 	document.addEventListener('keydown'	, function(e) {if (e.key === 'Shift') this.isShiftPressed = true;});
@@ -147,15 +168,15 @@ async init() {// Начальная инициализация
         }
     }
 
-moreOptimizeBalanceCom() {
+moreOptimizeBalanceCom = () => {
 	moreOptimizeBalance()
 }
-loadRollsCom() {
+loadRollsCom = () => {
 	loadRolls();
 }
 
 // Отрисовка 3D Схема
-initScene3D() {
+initScene3D = () => {
 	// параметры сцены
 	this.scene = new THREE.Scene();
 	this.scene.background = new THREE.Color(0xf5f5f5);
@@ -170,7 +191,7 @@ initScene3D() {
 }
 
 // Отрисовка 3D Схема
-setupScene3D() {
+setupScene3D = () => {
 	// Освещение и оси должны быть пересозданы
 	const ambientLight = new THREE.AmbientLight(0x404040);
 	this.scene.add(ambientLight);
@@ -314,7 +335,7 @@ setupScene3D() {
 	initDragControls();
 }
 
-createRollLabel3D(text) { // Подписи рулона
+createRollLabel3D = (text) => { // Подписи рулона
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     const fontSize = 40; // Базовый размер шрифта
@@ -339,7 +360,7 @@ createRollLabel3D(text) { // Подписи рулона
     return sprite;
 }
 
-updateLabelScale(label) {
+updateLabelScale = (label) => {
     if (!label.userData.baseScale) return;
     // Рассчитываем расстояние от метки до камеры
     const distance = label.position.distanceTo(this.camera.position);
@@ -348,8 +369,7 @@ updateLabelScale(label) {
     label.scale.copy(label.userData.baseScale).multiplyScalar(scaleFactor);
 }
 
-findClosestPosition3D(x, y, roll) {
-	
+findClosestPosition3D = (x, y, roll) => {
     let closestPos = null;
     let minDist = Infinity;
     let targetZ = 0;
@@ -387,7 +407,7 @@ findClosestPosition3D(x, y, roll) {
     } : null;
 }
 
-animateSnap3D(roll, targetPos, callback) {
+animateSnap3D = (roll, targetPos, callback) => {
     const roll3D = this.findRoll3DObject(roll.id);
     if (!roll3D) return;
     const startPos = roll3D.position.clone();
@@ -417,14 +437,11 @@ animateSnap3D(roll, targetPos, callback) {
 }
 //  Отрисовка 2D Схема
 // Скрипт для отрисовки SVG
-renderViews2D() {
+renderViews2D = () => {
     const viewsContainer = document.getElementById('views-container');
     viewsContainer.innerHTML = "";// очистим схем 2D
-    
     // Отрисовываем только текущий контейнер
     const container = this.currentTrain.containers[this.oContainerIndex];
-    
-
 	// Вид сверху
 	const topView = document.createElement('div');
 	topView.className = 'print-container active';
@@ -473,8 +490,9 @@ renderViews2D() {
 	sideViews.appendChild(rearSvg);
 	viewsContainer.appendChild(sideViews);
 }
+
 // для создания SVG-элемента
-createSvgElement(tag, attrs) {
+createSvgElement = (tag, attrs) => {
 	const elem = document.createElementNS("http://www.w3.org/2000/svg", tag);
 	if (attrs) for (const [key, value] of Object.entries(attrs)) {
 		elem.setAttribute(key, value);
@@ -482,13 +500,13 @@ createSvgElement(tag, attrs) {
 	return elem;
 }
 // Текст
-drawTextSVG(svg, txt ,x, y, id=0) {
+drawTextSVG  = (svg, txt ,x, y, id=0)  => {
 	const textElem = this.createSvgElement('text', {	x: x, y: y, class: 'dim-text','text-anchor': 'middle', 'data-roll-id': id});
 	textElem.textContent = txt;
 	svg.appendChild(textElem);
 }
 // Линия отступа двери
-LineDoor(svg,Y){
+LineDoor = (svg,Y) => {
     const doorOffset = ( this.oContainer.gateTypeCenter ?  Y : this.oContainer.L ) - this.oContainer.minCMDoor;
     const doorLine = this.createSvgElement('line', {
         x1:  this.offset2D + (this.oContainer.gateTypeCenter ? this.oContainer.L/2 - 80	: doorOffset),
@@ -504,7 +522,7 @@ LineDoor(svg,Y){
     this.drawTextSVG(svg, `${this.oContainer.minCMDoor}`,  this.offset2D + (this.oContainer.gateTypeCenter ? this.oContainer.L/2 : doorOffset),  this.offset2D + (this.oContainer.gateTypeCenter ? Y :  this.offset2D) );
 }
 // для отрисовки текстовой метки
-drawRollLabel(svg, roll) {
+drawRollLabel = (svg, roll) => {
     const _text = this.createSvgElement('text', {
         x:  this.offset2D + roll.x,
         y:  this.offset2D + roll.y - (roll.s-2)*20 - 10,
@@ -517,7 +535,7 @@ drawRollLabel(svg, roll) {
     svg.appendChild(_text);
 }
 // для отрисовки рулона 2D
-drawRoll(svg, roll) {
+drawRoll = (svg, roll) => {
 	const circle = this.createSvgElement('circle', {
 		cx: roll.x +  this.offset2D,
 		cy: roll.y +  this.offset2D,
@@ -533,7 +551,7 @@ drawRoll(svg, roll) {
 	this.drawRollLabel(svg, roll); // Добавляем метку
 }
 // для отрисовки позиции 2D
-drawPos(svg, pos) {
+drawPos = (svg, pos) => {
 	const circle = this.createSvgElement('circle', {
 		cx: pos.x +  this.offset2D,
 		cy: pos.y +  this.offset2D,
@@ -546,7 +564,7 @@ drawPos(svg, pos) {
 	//this.drawRollLabel(svg, pos); // Добавляем метку
 }
 // Отрисовка вида сверху
-drawTopView(svg, oContainer,index = "1") {
+drawTopView = (svg, oContainer,index = "1") =>  {
     this.drawTextSVG(svg, `Вид сверху ТС ${index} ${oContainer.rolls.length}/${oContainer.totalW} кг`, oContainer.L/2,  this.offset2D/2 );
     const container = this.createSvgElement('rect', {
         x:  this.offset2D,
@@ -603,7 +621,7 @@ drawTopView(svg, oContainer,index = "1") {
     svg.addEventListener('mouseleave', endDrag);
 }
 // Отрисовка вида сбоку
-drawFrontView(svg) {
+drawFrontView = (svg) => {
     this.drawTextSVG(svg, "Вид спереди:", this.oContainer.L/2,  this.offset2D/2  );
     // ТС
     const container = this.createSvgElement('rect', {
@@ -667,7 +685,7 @@ drawFrontView(svg) {
 	svg.appendChild(centerLine);
 }
 // Отрисовка вида со стороны двери
-drawDoorView(svg) {
+drawDoorView = (svg) => {
 	this.drawTextSVG(svg, "Вид от двери:",  this.offset2D*10,  this.offset2D*2 );
 	// ТС
 	const container = this.createSvgElement('rect', {
@@ -881,7 +899,7 @@ updateAllViews(roll) {
     }
 }
 
-findRoll3DObject(rollId) {
+findRoll3DObject = (rollId) => {
     let rollObject = null;
     this.scene.traverse(function(child) {
         if (child.userData && child.userData.id === rollId && child instanceof THREE.Mesh) {
@@ -921,12 +939,35 @@ renderSchemeList(schemes) {// Отобразить список схем в мо
         schemeItem.style.cursor = 'pointer';
         schemeItem.style.display = 'flex';
         schemeItem.style.justifyContent = 'space-between';
-        
-        schemeItem.innerHTML = `<div>
-<button class="load-btn" data-scheme="${scheme}"> ↤ </button>
-<span>${scheme}</span>
-<button class="delete-btn" data-scheme="${scheme}">x</button></div>`;
-        
+
+        // fix: Stored/DOM XSS — имя схемы вставлялось через innerHTML без экранирования | 2026-10-05 | Моро
+        // БЫЛО (имя схемы попадало в HTML как разметка, атрибут data-scheme и confirm()):
+        // schemeItem.innerHTML = `<div>
+        // <button class="load-btn" data-scheme="${scheme}"> ↤ </button>
+        // <span>${scheme}</span>
+        // <button class="delete-btn" data-scheme="${scheme}">x</button></div>`;
+        // Разметка строится через DOM API: текст попадает только в textContent,
+        // значение атрибута — только в dataset, HTML-инъекция невозможна.
+        const schemeRow = document.createElement('div');
+
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'load-btn';
+        loadBtn.dataset.scheme = scheme;
+        loadBtn.textContent = ' ↤ ';
+        schemeRow.appendChild(loadBtn);
+
+        const schemeName = document.createElement('span');
+        schemeName.textContent = scheme;
+        schemeRow.appendChild(schemeName);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.dataset.scheme = scheme;
+        deleteBtn.textContent = 'x';
+        schemeRow.appendChild(deleteBtn);
+
+        schemeItem.appendChild(schemeRow);
+
         listContainer.appendChild(schemeItem);
     });
     
@@ -1074,14 +1115,14 @@ async initTsSelector() {// Загрузка и инициализация пар
 }
 
 
-generateTrainView() {// рисовать состав ТС
+generateTrainView = () => {// рисовать состав ТС
 	this.renderViews2D();
 	this.renderTrainListView();
 	// После отрисовки всех ТС показываем текущий 
 	//this.showContainer();
 }
 
-renderTrainListView() { //для отрисовки миниатюр видов сверху
+renderTrainListView = () => { //для отрисовки миниатюр видов сверху
     const containers = document.getElementById('views-container-list');
     containers.innerHTML = '';
     
@@ -1885,7 +1926,7 @@ showSchemeListModal(schemes) {// Показ модального окна со �
 }
 */
 
-generateView() {// генерации видов
+generateView = () => {// генерации видов
 	
 	if( this.currentViewMode === '2D')	
 		this.generateView2D();
@@ -1895,44 +1936,7 @@ generateView() {// генерации видов
 		this.generateTrainView();
 }
 
-generateView1D() {// Пересоздание плоского вида
-	this.currentViewMode = '1D';
-	this.updateViewMode();
-	this.generateTrainView();
-	this.updateUI();
-}
-
-generateView2D() {// Пересоздание плоского вида
-	this.currentViewMode = '2D';
-	this.updateViewMode();
-	this.renderViews2D();
-	this.updateUI();
-}
-
-generateView3D() {// Пересоздание обьемного вида
-	if (!this.oContainer) return;
-	this.currentViewMode = '3D';
-	this.updateViewMode();
-	if (this.scene)	while(this.scene.children.length > 0) {	// Корректная очистка сцены
-		const obj = this.scene.children[0];
-		if (obj.geometry) obj.geometry.dispose();
-		if (obj.material) obj.material.dispose();
-		this.scene.remove(obj);
-	}
-	else  this.initScene3D();
-	this.setupScene3D();
-	this.init3DDragControls(); // Добавляем контролы заново
-	this.adjustcamera();
-	this.animate();			// Принудительный ререндер
-	this.updateUI();
-}
-
-toggleViewMode() { // переключения режимов
-    this.currentViewMode = this.currentViewMode === '1D' ? '2D' : '2D';
-	this.updateViewMode();
-}
-
-updateViewMode() { // обновления вида
+updateViewMode = () => { // обновления вида
     document.getElementById('panel2D'			).style.display		= this.currentViewMode==='1D' || this.currentViewMode==='3D'	? 'none'	: 'block';	
     document.getElementById('train-list-view'	).style.display		= this.currentViewMode==='1D'							? 'block'	: 'none';	
 	if (this.currentViewMode==='1D') {
@@ -1951,6 +1955,44 @@ updateViewMode() { // обновления вида
 		document.querySelector('#topView').classList.add('active');
 	}		
 }
+
+generateView1D = () =>  {// Пересоздание плоского вида
+	this.currentViewMode = '1D';
+	this.updateViewMode();
+	this.generateTrainView();
+	this.updateUI();
+}
+
+generateView2D = () => {// Пересоздание плоского вида
+	this.currentViewMode = '2D';
+	this.updateViewMode();
+	this.renderViews2D();
+	this.updateUI();
+}
+
+generateView3D = () => {// Пересоздание обьемного вида
+	if (!this.oContainer) return;
+	this.currentViewMode = '3D';
+	this.updateViewMode();
+	if (this.scene)	while(this.scene.children.length > 0) {	// Корректная очистка сцены
+		const obj = this.scene.children[0];
+		if (obj.geometry) obj.geometry.dispose();
+		if (obj.material) obj.material.dispose();
+		this.scene.remove(obj);
+	}
+	else  this.initScene3D();
+	this.setupScene3D();
+	init3DDragControls(); // Добавляем контролы заново
+	adjustcamera();
+	animate();			// Принудительный ререндер
+	this.updateUI();
+}
+
+toggleViewMode = () => { // переключения режимов
+    this.currentViewMode = this.currentViewMode === '1D' ? '2D' : '2D';
+	this.updateViewMode();
+}
+
 /*
 createTrainListView() {// Создаем список ТС если его нет
     const listView = document.createElement('div');
@@ -2023,7 +2065,7 @@ drawTopViewForList(svg, container) {//упрощен. вер.
     });
 }
 */
-initDragBetweenContainers() { // между ТС
+initDragBetweenContainers = () => { // между ТС
     this.draggedRoll = null;
     let sourceContainerIndex = null;
     
@@ -2045,14 +2087,14 @@ initDragBetweenContainers() { // между ТС
     });
 }
     
-startDragBetween(e) {
+startDragBetween = (e) => {
 	// Предотвращаем стандартное поведение только для touch-событий
 	if (e.type === 'touchstart') {
 		e.preventDefault();
 	}
 	
 	const circle = e.target;
-	sourceContainerIndex = parseInt(circle.closest('svg').dataset.containerIndex);
+	this.sourceContainerIndex = parseInt(circle.closest('svg').dataset.containerIndex);
 	const rollId = parseInt(circle.dataset.rollId);
 	
 	this.draggedRoll = this.currentTrain.containers[sourceContainerIndex].rolls
@@ -2063,14 +2105,14 @@ startDragBetween(e) {
 	}
 }
 
-dragBetween(e) {
+dragBetween = (e) => {
 	if (!this.draggedRoll) return;
 	e.preventDefault();
 	
 	// Можно добавить визуальное выделение при перетаскивании
 }
 
-endDragBetween(e) {
+endDragBetween = (e) => {
 	if (!this.draggedRoll) return;
 	e.preventDefault();
 	
@@ -2098,7 +2140,7 @@ endDragBetween(e) {
 	sourceContainerIndex = null;
 }
 
-updateUI() {// отрисовка интерфейса
+updateUI = () => {// отрисовка интерфейса
     // Обновляем информацию о текущем ТС
     document.getElementById('current-container-info').textContent = `ТС ${this.oContainerIndex + 1}/${this.currentTrain.containers.length}`;
 	
@@ -2143,7 +2185,20 @@ updateUI() {// отрисовка интерфейса
 		this.oContainer.unplacedRolls.forEach( roll => {
 			const errorItem = document.createElement('div');
 			errorItem.className = 'error-item';
-			errorItem.innerHTML = '<strong>'+roll.id+'</strong>: <small>'+roll.H+', '+roll.D+', '+roll.W+'</small> '+roll.placementError;
+			// fix: Stored XSS — placementError приходил из JSON схемы и подставлялся
+			//      в innerHTML конкатенацией. Теперь текст попадает только через
+			//      textContent, HTML-разметка не интерпретируется | 2026-10-05 | Моро
+			// БЫЛО:
+			// errorItem.innerHTML = '<strong>'+roll.id+'</strong>: <small>'+roll.H+', '+roll.D+', '+roll.W+'</small> '+roll.placementError;
+			const errId = document.createElement('strong');
+			errId.textContent = roll.id;
+			const errDims = document.createElement('small');
+			errDims.textContent = roll.H + ', ' + roll.D + ', ' + roll.W;
+
+			errorItem.appendChild(errId);
+			errorItem.appendChild(document.createTextNode(': '));
+			errorItem.appendChild(errDims);
+			errorItem.appendChild(document.createTextNode(' ' + roll.placementError));
 			errorList.appendChild(errorItem);
 		});
 	}
@@ -2160,7 +2215,7 @@ updateUI() {// отрисовка интерфейса
 		`;
 }
 
-dravPrintScheme() {// подготовки для печати схемы
+dravPrintScheme = () => {// подготовки для печати схемы
 	// Создаем ТС для печати
     const printContainer = document.createElement('div');
     printContainer.id = 'print-container';
@@ -2221,7 +2276,7 @@ dravPrintScheme() {// подготовки для печати схемы
 	return printContainer;
 }
 
-showError(message) {// Показ ошибок
+showError = (message) => {// Показ ошибок
     const errorEl = document.createElement('div');
     errorEl.id = 'error-message';
     errorEl.textContent = message;

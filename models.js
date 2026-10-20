@@ -621,6 +621,96 @@ class Container { // Траспортное стредство для погру
 	}
 
    // метод предрасчета позиций начиная с параметра
+	// =====================================================================
+	// fix: режим укладки «Ромб» (галка «укладка Змейкой» выкл) | 2026-10-05 | Моро
+	// Ряды строятся симметрично относительно центра ширины ТС, а количество
+	// рулонов в ряду чередуется: N_max / N_max-1 (1-2-1-2… или 2-3-2-3…).
+	// =====================================================================
+	// Сколько рулонов диаметра D влезает в ряд по ширине T
+	rhombusMaxInRow(D) {
+		if (!(D > 0)) return 1;
+		return Math.floor((this.T - D) / D) + 1;
+	}
+	// Целевое число в ряду: широкие ряды — N_max, узкие — N_max-1.
+	// N_max <= 1 → возвращаем 1, и вызывающий код откатится на Змейку.
+	rhombusTargetInRow(rowNumber, D) {
+		const nMax = this.rhombusMaxInRow(D);
+		if (nMax <= 1) return 1;
+		// БЫЛО:
+		// return rowNumber % 2 === 0 ? nMax : nMax - 1;
+		// fix: опция «Чётный» (EvenRowStyle). Галка = чётный (широкий) первый ряд → 2-1-2-1;
+		//      без галки первым идёт узкий ряд → 1-2-1-2 | 2026-10-09 | Моро
+		const wideFirst = evenRowStyleEnabled();
+		// БЫЛО: const wideFirst = !evenRowStyleEnabled();
+		const isWideRow = (rowNumber % 2 === 0) === wideFirst;
+		return isWideRow ? nMax : nMax - 1;
+	}
+	// Y-позиции ряда от центра наружу. Нечётное число — первый позицией центр T/2,
+	// дальше ±D, ±2D…; чётное — пары T/2 ± D/2, T/2 ± 3D/2…. Сдвиг между
+	// последовательными рядами всегда D/2, поэтому соседний ряд ложится в гнёзда
+	// предыдущего и решётка остаётся гексагональной, просто ряды уже.
+	rhombusYList(target, D) {
+		const ys = [];
+		if (!(target >= 1) || !(D > 0)) return ys;
+		const R = this.oRolls.R;
+		const half = this.T / 2;
+		// БЫЛО:
+		// if (target % 2 === 1) {
+		// 	ys.push(half);
+		// 	for (let k = 1; ys.length < target; k++) {
+		// 		if (ys.length < target) ys.push(half + k * D);
+		// 		if (ys.length < target) ys.push(half - k * D);
+		// 	}
+		// } else {
+		// 	ys.push(half - D / 2);
+		// 	ys.push(half + D / 2);
+		// 	for (let k = 1; ys.length < target; k++) {
+		// 		if (ys.length < target) ys.push(half - D / 2 - k * D);
+		// 		if (ys.length < target) ys.push(half + D / 2 + k * D);
+		// 	}
+		// }
+		// fix: ряд был центрирован с шагом D и оставлял зазоры у стенок — раздвигаю широкий
+		// ряд на всю ширину (крайние рулоны касаются стенок), а узкий ставлю в гнёзда | 2026-10-09 | Моро
+		const nMax = this.rhombusMaxInRow(D);
+		if (nMax <= 1) return ys;
+		const step = (this.T - 2 * R) / (nMax - 1);
+		if (target >= nMax) {
+			for (let i = 0; i < nMax; i++) ys.push(R + i * step);
+		} else {
+			for (let i = 0; i < nMax - 1; i++) ys.push(R + (i + 0.5) * step);
+		}
+		return ys
+			.filter(y => y >= R - 0.001 && y <= this.T - R + 0.001)
+			.map(y => Math.min(Math.max(y, R), this.T - R)) // поджать к стенке, если попали на границу
+			.sort((a, b) => Math.abs(a - half) - Math.abs(b - half) || a - b);
+	}
+	// Ряд «Ромба»: рулоны ставим строго на заданные Y, а общий X подбираем так,
+	// чтобы ряд лёг в гнёзда уже поставленных и не наехал ни на один из них.
+	// Широкий ряд растянут от стенки до стенки, узкий ложится в середины его ячеек,
+	// поэтому смещение по Y между рядами = step/2, а шаг по X = sqrt((2R)^2-(step/2)^2)
+	// (как правило меньше «гексагональных» D*0.866 — укладка плотнее).
+	generateRhombusRow(prevPos, yList) {
+		const R = this.oRolls.R, D = this.oRolls.D;
+		let x = this.current_X;
+		for (const y of yList) {
+			for (const p of prevPos) {
+				const dy = Math.abs(p.y - y);
+				if (dy < 2 * R - wa.mm) {
+					x = Math.max(x, p.x + Math.sqrt(Math.max(0, (2 * R) * (2 * R) - dy * dy)));
+				}
+			}
+		}
+		return yList.map(y => ({
+			type: 'ромб',
+			priority: this.prio,
+			x: x,
+			y: y,
+			D: D,
+			R: R,
+			s: 1
+		}));
+	}
+
     precalculatePositionsRolls(startX = 0) {
         this.rowNumber = startX === 0 ? 0 : 20;
         this.oRolls.nextD(0);
@@ -635,15 +725,51 @@ class Container { // Траспортное стредство для погру
 			let direction = this.rowNumber % 2 === 0 ? 1 : -1; // напрявление выкладывания четных рядов
 			let start_Y = direction < 0 ? this.T - this.oRolls.R : this.oRolls.R;
 			let leftPos = [];
+
+			// fix: режим укладки выбирается галкой «укладка Змейкой» (#SnakeStyle) | 2026-10-05 | Моро
+			//   Змейка (галка вкл) — как раньше: направление обхода по Y в ряду
+			//     чередуется (direction = ±1).
+			//   Ромб (галка выкл) — количество рулонов в ряду чередуется
+			//     N_max / N_max-1 (1-2-1-2… или 2-3-2-3…), ряды симметричны
+			//     относительно центра ширины ТС (T/2), обход от центра наружу.
+			//     Позиции «между» в этом режиме не предлагаются — ряды ровнее,
+			//     плотность осознанно ниже. N_max считается отдельно для каждого
+			//     ряда, т.к. nextD() меняет диаметр по ходу вагона.
+			//   N_max <= 1 — откат на Змейку (в ряд влезает один рулон).
+			const snakeMode = !rhombusStyleEnabled(); // fix: галка «Ромб» (вкл = Ромб) | 2026-10-09 | Моро
+			// БЫЛО: const snakeMode = snakeStyleEnabled();
+			// fix: откат по N_max, а не по цели ряда! При N_max = 2 цель нечётного
+			//      ряда равна 1, и раньше такой ряд считался «некорректным» и уходил
+			//      в Змейку. Откат нужен только если в ряд вообще влезает один рулон
+			//      (иначе центрировать нечего) | 2026-10-05 | Моро
+			const rhombusNMax = this.rhombusMaxInRow(this.oRolls.D);
+			const rhombusInRow = this.rhombusTargetInRow(this.rowNumber, this.oRolls.D);
+			const rhombusY = (!snakeMode && rhombusNMax > 1) ? this.rhombusYList(rhombusInRow, this.oRolls.D) : [];
+			const useRhombus = rhombusY.length > 0; // пустой список — откат на Змейку
+			const rowYList = useRhombus ? rhombusY : null;
+			const rowLimit = useRhombus ? Math.min(rhombusInRow, rhombusY.length) : 10; // Лимит вариантов на ряд
+
 			// Собираем возможные позиции для ряда
 			if (this.rowNumber === 0) {	// Первый ряд - базое заполнение
-				this.rowPositions = this.generateFirstRow(start_Y, direction);//console.log(this.rowPositions)
+				this.rowPositions = this.generateFirstRow(start_Y, direction, rowYList);//console.log(this.rowPositions)
 			} else {
 				const prevPositions = this.Positions.filter(p => p.x > this.current_X - this.oRolls.D);//console.log(this.oRolls.D)
-				leftPos = this.calculatePositions(prevPositions, start_Y, direction); // змейкой скользим по пересечения кругов, начиная от краев поочереди
-				if (this.rowPositions.length < this.T / this.oRolls.D) { //Проверка позиций между соседними рулонами если ряд не заполнен
-					leftPos.push(...this.calculateBetweenPositions(prevPositions, direction));
-				}	
+				if (useRhombus) {
+					// fix: режим «Ромб» — ряд строится напрямую по списку Y, а X подбирается
+					//      под гнёзда предыдущего ряда (см. generateRhombusRow), поэтому
+					//      позиции «между» и скольжение по кругам здесь не нужны | 2026-10-05 | Моро
+					// БЫЛО:
+					// leftPos = this.generateRhombusRow(prevPositions, rowYList);
+					// fix: плотный «Ромб» идёт мелким шагом по X, поэтому окно в D отсекало
+					//      ряды через один и они накладывались — для ромба беру ВСЕ уже
+					//      поставленные рулоны, чтобы ряд не наехал ни на один из них | 2026-10-09 | Моро
+					leftPos = this.generateRhombusRow(this.Positions, rowYList);
+				} else {
+					leftPos = this.calculatePositions(prevPositions, start_Y, direction); // змейкой скользим по пересечения кругов, начиная от краев поочереди
+					if (this.rowPositions.length < this.T / this.oRolls.D) { //Проверка позиций между соседними рулонами если ряд не заполнен
+						leftPos.push(...this.calculateBetweenPositions(prevPositions, direction));
+					}
+				}
 				this.rowPositions.push(...leftPos);// Варианты между рулонами
 				
   				// Случайное перемешивание с приоритетом
@@ -654,7 +780,7 @@ class Container { // Траспортное стредство для погру
 			for (const pos of this.rowPositions) {
 				if (this.pushOnlyGood(pos)) {
 					validPositions.push(pos);
-					if (validPositions.length >= 10) {// Лимит вариантов на ряд	
+					if (validPositions.length >= rowLimit) {// Лимит вариантов на ряд	
 						console.log('пtребор в позиций ряду '+validPositions.length);
 						break;
 					}	
@@ -668,7 +794,15 @@ class Container { // Траспортное стредство для погру
 				this.current_X += this.oRolls.D * 0.866; // Фиксированный шаг если нет вариантов
 			}
 		   
-			if (!this.gateTypeCenter && this.current_X < this.minDimX + this.oRolls.R && this.minDimX <= 2*this.minCMDoor ) {
+			// БЫЛО:
+			// if (!this.gateTypeCenter && this.current_X < this.minDimX + this.oRolls.R && this.minDimX <= 2*this.minCMDoor ) {
+			// 	// не у вагона сдвигаем центр начала размещения, для компенсации пустого места у двери	
+			// 	this.current_X = this.minDimX + this.oRolls.R;//console.log(this.minDimX)
+			// }
+			// fix: в «Ромбе» этот зазор рвал касание только что поставленного ряда (узкий ряд
+			//      встаёт стенка-в-стенку раньше minDimX+R), из-за чего exist2Contact его
+			//      отбрасывал и ряд пропадал. В Ромбе зазор не нужен — прижимаем ряды вплотную | 2026-10-09 | Моро
+			if (!this.gateTypeCenter && !useRhombus && this.current_X < this.minDimX + this.oRolls.R && this.minDimX <= 2*this.minCMDoor ) {
 				// не у вагона сдвигаем центр начала размещения, для компенсации пустого места у двери	
 				this.current_X = this.minDimX + this.oRolls.R;//console.log(this.minDimX)
 			}
@@ -753,8 +887,25 @@ class Container { // Траспортное стредство для погру
 	}
 
 	// первый ряд
-	generateFirstRow(start_Y, direction) {
+	// fix: режим «Ромб» — первый ряд строится по готовому списку Y (симметрично
+	//      относительно центра ширины ТС, от центра наружу). При yList = null
+	//      поведение полностью прежнее, включая ветку for2roll | 2026-10-05 | Моро
+	generateFirstRow(start_Y, direction, yList = null) {
 		const positions = [];
+		if (yList) {
+			for (const y of yList) {
+				positions.push({
+					type: 'first',
+					priority: 1,
+					x: this.current_X,
+					y: y,
+					D: this.oRolls.D,
+					R: this.oRolls.R,
+					s: 0
+				});
+			}
+			return positions;
+		}
 		const random = Math.random();					
 		const for2roll = this.T > 2*this.oRolls.D && this.T < 3*this.oRolls.D;	
 		for (let y = ( for2roll && random < 0.1 ? this.T/2 : start_Y ) ; 
@@ -2755,7 +2906,11 @@ function getSchemeData() {// Получить данные схемы
     if (!wa.currentTrain || wa.currentTrain.containers.length === 0) return null;
     
     // Собираем настройки рулонов
-    //const wa.rollSets = [];
+    // fix: список наборов ПЕРЕСОБИРАЕМ заново. Раньше стоял push в уже заполненный
+    //      wa.rollSets, из-за чего при каждом сохранении (а оно идёт после каждого
+    //      пересчёта) наборы дублировались и «росли» от сеанса к сеансу — схема
+    //      хранится в localStorage schemeData | 2026-10-09 | Моро
+    wa.rollSets = [];
     document.querySelectorAll('.roll-set').forEach(setEl => {
         wa.rollSets.push({
             H: parseFloat(setEl.querySelector('.roll-H').value),
@@ -2764,6 +2919,16 @@ function getSchemeData() {// Получить данные схемы
             count: parseInt(setEl.querySelector('.roll-count').value)
         });
     });
+    // БЫЛО:
+    // //const wa.rollSets = [];
+    // document.querySelectorAll('.roll-set').forEach(setEl => {
+    //     wa.rollSets.push({
+    //         H: parseFloat(setEl.querySelector('.roll-H').value),
+    //         D: parseFloat(setEl.querySelector('.roll-D').value),
+    //         W: parseFloat(setEl.querySelector('.roll-W').value),
+    //         count: parseInt(setEl.querySelector('.roll-count').value)
+    //     });
+    // });
     
     // Собираем данные по всем ТС в цепочке
     const containersData = wa.currentTrain.containers.map(container => ({
@@ -2814,10 +2979,83 @@ function getSchemeData() {// Получить данные схемы
             sliderValue: document.getElementById('rolls-slider').value,
             FreeStyle: document.getElementById('FreeStyle').checked,
             CrossStyle: document.getElementById('CrossStyle').checked,
+            // fix: режим укладки едет внутри схемы, как FreeStyle/CrossStyle | 2026-10-05 | Моро
+            // fix: галка переименована SnakeStyle → RhombusStyle (вкл = Ромб) | 2026-10-09 | Моро
+            RhombusStyle: rhombusStyleEnabled(),
+            // БЫЛО: SnakeStyle: snakeStyleEnabled(),
+            // fix: новые опции Ромба и авто-сдвига тоже сохраняем в схему | 2026-10-09 | Моро
+            EvenRowStyle: evenRowStyleEnabled(),
+            AutoBalance: autoBalanceEnabled(),
             currentContainerIndex: wa.oContainerIndex
         }
     };
 }
+
+// fix: Stored XSS — числовые поля из JSON схемы не приводились к числу и попадали
+//      в innerHTML как есть (views.js: `${this.oContainer.L}`, `${roll.id}` и т.п.),
+//      поэтому файл схемы мог содержать HTML-разметку. Теперь при загрузке все
+//      числовые поля приводятся, а нечисловое значение заменяется запасным | 2026-10-05 | Моро
+function schemeNum(value, fallback) {
+    if (fallback === undefined) fallback = 0;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+// fix: цвет из файла схемы принимается только если он выглядит как валидный CSS-цвет,
+//      иначе THREE.Color бросал исключение и загрузка схемы падала | 2026-10-05 | Моро
+function schemeColor(value) {
+    if (typeof value !== 'string') return null;
+    const v = value.trim();
+    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) return v;
+    if (/^[0-9]{1,10}$/.test(v)) return v;
+    if (/^[a-zA-Z]{3,20}$/.test(v)) return v;
+    return null;
+}
+
+// fix: то же для параметров ТС — каждый известный ключ берётся с приведением к числу | 2026-10-05 | Моро
+function schemeParams(source, defaults) {
+    const out = {};
+    const src = (source && typeof source === 'object') ? source : {};
+    for (const key of Object.keys(defaults)) {
+        out[key] = schemeNum(src[key], defaults[key]);
+    }
+    return out;
+}
+
+// fix: режим укладки. Галка «Ромб» (#RhombusStyle): вкл — Ромб, снята — Змейка.
+//      Раньше было наоборот (галка «укладка Змейкой»); галки нет в разметке —
+//      считаем Ромб (текущий режим по умолчанию) | 2026-10-09 | Моро
+function rhombusStyleEnabled() {
+    const el = document.getElementById('RhombusStyle');
+    return el ? !!el.checked : true;
+}
+// БЫЛО:
+// function snakeStyleEnabled() {
+//     const el = document.getElementById('SnakeStyle');
+//     return !el || el.checked;
+// }
+
+// fix: опция «Чётный» (#EvenRowStyle). Галка = чётный (широкий) первый ряд (N_max),
+//      т.е. 2-1-2-1; без галки первым идёт узкий ряд (N_max-1), т.е. 1-2-1-2.
+//      Если галки нет в разметке — считаем снятой | 2026-10-09 | Моро
+function evenRowStyleEnabled() {
+    const el = document.getElementById('EvenRowStyle');
+    return !!(el && el.checked);
+}
+
+// fix: опция «Авто» для «Сдвига груза вдоль» (#AutoBalance). Если галки нет — считаем
+//      снятой, слайдер управляется вручную | 2026-10-09 | Моро
+function autoBalanceEnabled() {
+    const el = document.getElementById('AutoBalance');
+    return !!(el && el.checked);
+}
+
+// Параметры ТС по умолчанию (используются для приведения и для старых схем)
+const SCHEME_CONTAINER_DEFAULTS = {
+    L: 1203, T: 235, H: 259,
+    maxW: 25500, maxCML: 30, maxCMT: 10,
+    maxKGL: 1500, maxKGT: 500, minCMDoor: 50, minDimX: 25
+};
 
 function loadScheme(scheme) {// Инициализация обработчиков для кнопок загрузки/сохранения
     if (!scheme) return;
@@ -2827,10 +3065,24 @@ function loadScheme(scheme) {// Инициализация обработчик�
     wa.oContainerIndex = 0;
     
     // 2. Восстанавливаем наборы рулонов
+    // fix: H/D/W/count приводятся к числу — иначе строка из JSON попадала дальше
+    //      в разметку как есть | 2026-10-05 | Моро
+    // БЫЛО:
+    // document.querySelectorAll('.roll-set').forEach(el => el.remove());
+    // if (scheme.rollSets && scheme.rollSets.length > 0) {
+    //     scheme.rollSets.forEach(roll => {
+    //         addRollSet(roll.H, roll.D, roll.W, roll.count);
+    //     });
+    // } else {
+    //     // Дефолтные значения, если в схеме нет наборов
+    //     addRollSet(100, 120, 870, 28);
+    // }
     document.querySelectorAll('.roll-set').forEach(el => el.remove());
+    wa.rollSets = []; // fix: сбрасываем список наборов, иначе он копился при загрузке схемы | 2026-10-09 | Моро
     if (scheme.rollSets && scheme.rollSets.length > 0) {
         scheme.rollSets.forEach(roll => {
-            addRollSet(roll.H, roll.D, roll.W, roll.count);
+            const src = (roll && typeof roll === 'object') ? roll : {};
+            addRollSet(schemeNum(src.H, 100), schemeNum(src.D, 120), schemeNum(src.W, 870), schemeNum(src.count, 1));
         });
     } else {
         // Дефолтные значения, если в схеме нет наборов
@@ -2840,42 +3092,93 @@ function loadScheme(scheme) {// Инициализация обработчик�
     // 3. Восстанавливаем цепочку ТС
     if (scheme.version === "1.1" && scheme.containers) {
         // Новая версия с поддержкой цепочки ТС
+        // fix: Stored XSS — параметры, координаты и рулоны из JSON брались без приведения
+        //      к числу и попадали в innerHTML как есть; отсутствующий массив rolls давал
+        //      исключение и ломал загрузку | 2026-10-05 | Моро
+        // БЫЛО:
+        // scheme.containers.forEach(containerData => {
+        //     const container = new Container({
+        //         ...containerData.params,
+        //         trainIndex: wa.currentTrain.containers.length,
+        //         id: `container-${Date.now()}-${wa.currentTrain.containers.length}`
+        //     });
+        //     
+        //     // Восстанавливаем рулоны
+        //     container.rolls = containerData.rolls.map(r => {
+        //         const roll = new Roll(r.id, r.H, r.D, r.W);
+        //         Object.assign(roll, {
+        //             x: r.x,
+        //             y: r.y,
+        //             z: r.z,
+        //             s: r.s,
+        //             row: r.row,
+        //             color: r.color || wa.styleColorFillRoll(roll)
+        //         });
+        //         return roll;
+        //     });
+        //     
+        //     // Восстанавливаем центр масс
+        //     container.centerOfMass = containerData.centerOfMass || {
+        //         x: container.L / 2,
+        //         y: container.T / 2,
+        //         z: container.H / 2
+        //     };
+        //     
+        //     wa.currentTrain.containers.push(container);
+        // });
         scheme.containers.forEach(containerData => {
+            const src = (containerData && typeof containerData === 'object') ? containerData : {};
+
             const container = new Container({
-                ...containerData.params,
+                ...schemeParams(src.params, SCHEME_CONTAINER_DEFAULTS),
                 trainIndex: wa.currentTrain.containers.length,
                 id: `container-${Date.now()}-${wa.currentTrain.containers.length}`
             });
-            
+
             // Восстанавливаем рулоны
-            container.rolls = containerData.rolls.map(r => {
-                const roll = new Roll(r.id, r.H, r.D, r.W);
+            const rawRolls = Array.isArray(src.rolls) ? src.rolls : [];
+            container.rolls = rawRolls.map(r => {
+                const raw = (r && typeof r === 'object') ? r : {};
+                const roll = new Roll(schemeNum(raw.id), schemeNum(raw.H), schemeNum(raw.D), schemeNum(raw.W));
                 Object.assign(roll, {
-                    x: r.x,
-                    y: r.y,
-                    z: r.z,
-                    s: r.s,
-                    row: r.row,
-                    color: r.color || wa.styleColorFillRoll(roll)
+                    x: schemeNum(raw.x),
+                    y: schemeNum(raw.y),
+                    z: schemeNum(raw.z),
+                    s: schemeNum(raw.s),
+                    row: schemeNum(raw.row),
+                    // fix: цвет уходит в THREE.Color — непонятный строковый литерал из
+                    //      чужого файла ронял бы загрузку, берём только валидный цвет | 2026-10-05 | Моро
+                    color: schemeColor(raw.color) || wa.styleColorFillRoll(roll)
                 });
                 return roll;
             });
-            
+
             // Восстанавливаем центр масс
-            container.centerOfMass = containerData.centerOfMass || {
+            const com = (src.centerOfMass && typeof src.centerOfMass === 'object') ? src.centerOfMass : null;
+            container.centerOfMass = com ? {
+                x: schemeNum(com.x, container.L / 2),
+                y: schemeNum(com.y, container.T / 2),
+                z: schemeNum(com.z, container.H / 2)
+            } : {
                 x: container.L / 2,
                 y: container.T / 2,
                 z: container.H / 2
             };
-            
+
             wa.currentTrain.containers.push(container);
         });
         
         // Восстанавливаем неразмещенные рулоны
         if (scheme.unplacedRolls) {
             wa.currentTrain.unplacedRolls = scheme.unplacedRolls.map(r => {
-                const roll = new Roll(r.id, r.H, r.D, r.W);
-                roll.placementError = r.placementError || "";
+                const raw = (r && typeof r === 'object') ? r : {};
+                const roll = new Roll(schemeNum(raw.id), schemeNum(raw.H), schemeNum(raw.D), schemeNum(raw.W));
+                // fix: сообщение — обычная строка с ограничением длины; экранирование
+                //      выполняется в точке вывода (views.js/index.html, textContent) | 2026-10-05 | Моро
+                // БЫЛО:
+                // const roll = new Roll(r.id, r.H, r.D, r.W);
+                // roll.placementError = r.placementError || "";
+                roll.placementError = String(raw.placementError || "").slice(0, 500);
                 return roll;
             });
         }
@@ -2888,43 +3191,80 @@ function loadScheme(scheme) {// Инициализация обработчик�
         wa.oContainer = wa.currentTrain.containers[wa.oContainerIndex];
     } else {
         // Старая версия схемы (один ТС)
-        const containerParams = scheme.containerParams || {
-            L: 1203,
-            T: 235,
-            H: 259,
-            maxW: 25500,
-            maxCML: 30,
-            maxCMT: 10,
-            maxKGL: 1500,
-            maxKGT: 500,
-            minCMDoor: 50,
-            minDimX: 25
-        };
-        
+        // fix: Stored XSS — параметры/координаты/рулоны из JSON брались без приведения
+        //      к числу и попадали в innerHTML как есть | 2026-10-05 | Моро
+        // БЫЛО:
+        // const containerParams = scheme.containerParams || {
+        //     L: 1203,
+        //     T: 235,
+        //     H: 259,
+        //     maxW: 25500,
+        //     maxCML: 30,
+        //     maxCMT: 10,
+        //     maxKGL: 1500,
+        //     maxKGT: 500,
+        //     minCMDoor: 50,
+        //     minDimX: 25
+        // };
+        // 
+        // const container = new Container({
+        //     ...containerParams,
+        //     trainIndex: 0,
+        //     id: `container-${Date.now()}-0`
+        // });
+        // 
+        // // Восстанавливаем рулоны
+        // if (scheme.rolls) {
+        //     container.rolls = scheme.rolls.map(r => {
+        //         const roll = new Roll(r.id, r.H, r.D, r.W);
+        //         Object.assign(roll, {
+        //             x: r.x,
+        //             y: r.y,
+        //             z: r.z,
+        //             s: r.s,
+        //             row: r.row,
+        //             color: r.color || wa.styleColorFillRoll(roll)
+        //         });
+        //         return roll;
+        //     });
+        // }
+        // 
+        // // Восстанавливаем центр масс
+        // container.centerOfMass = scheme.centerOfMass || {
+        //     x: container.L / 2,
+        //     y: container.T / 2,
+        //     z: container.H / 2
+        // };
         const container = new Container({
-            ...containerParams,
+            ...schemeParams(scheme.containerParams, SCHEME_CONTAINER_DEFAULTS),
             trainIndex: 0,
             id: `container-${Date.now()}-0`
         });
-        
+
         // Восстанавливаем рулоны
-        if (scheme.rolls) {
+        if (Array.isArray(scheme.rolls)) {
             container.rolls = scheme.rolls.map(r => {
-                const roll = new Roll(r.id, r.H, r.D, r.W);
+                const raw = (r && typeof r === 'object') ? r : {};
+                const roll = new Roll(schemeNum(raw.id), schemeNum(raw.H), schemeNum(raw.D), schemeNum(raw.W));
                 Object.assign(roll, {
-                    x: r.x,
-                    y: r.y,
-                    z: r.z,
-                    s: r.s,
-                    row: r.row,
-                    color: r.color || wa.styleColorFillRoll(roll)
+                    x: schemeNum(raw.x),
+                    y: schemeNum(raw.y),
+                    z: schemeNum(raw.z),
+                    s: schemeNum(raw.s),
+                    row: schemeNum(raw.row),
+                    color: schemeColor(raw.color) || wa.styleColorFillRoll(roll)
                 });
                 return roll;
             });
         }
-        
+
         // Восстанавливаем центр масс
-        container.centerOfMass = scheme.centerOfMass || {
+        const oldCom = (scheme.centerOfMass && typeof scheme.centerOfMass === 'object') ? scheme.centerOfMass : null;
+        container.centerOfMass = oldCom ? {
+            x: schemeNum(oldCom.x, container.L / 2),
+            y: schemeNum(oldCom.y, container.T / 2),
+            z: schemeNum(oldCom.z, container.H / 2)
+        } : {
             x: container.L / 2,
             y: container.T / 2,
             z: container.H / 2
@@ -2933,8 +3273,14 @@ function loadScheme(scheme) {// Инициализация обработчик�
         // Восстанавливаем неразмещенные рулоны
         if (scheme.unplacedRolls) {
             wa.currentTrain.unplacedRolls = scheme.unplacedRolls.map(r => {
-                const roll = new Roll(r.id, r.H, r.D, r.W);
-                roll.placementError = r.placementError || "";
+                const raw = (r && typeof r === 'object') ? r : {};
+                const roll = new Roll(schemeNum(raw.id), schemeNum(raw.H), schemeNum(raw.D), schemeNum(raw.W));
+                // fix: сообщение — обычная строка с ограничением длины; экранирование
+                //      выполняется в точке вывода (views.js/index.html, textContent) | 2026-10-05 | Моро
+                // БЫЛО:
+                // const roll = new Roll(r.id, r.H, r.D, r.W);
+                // roll.placementError = r.placementError || "";
+                roll.placementError = String(raw.placementError || "").slice(0, 500);
                 return roll;
             });
         }
@@ -2948,6 +3294,24 @@ function loadScheme(scheme) {// Инициализация обработчик�
         document.getElementById('rolls-slider').value = scheme.uiState.sliderValue || 0;
         document.getElementById('FreeStyle').checked = scheme.uiState.FreeStyle !== false;
         document.getElementById('CrossStyle').checked = scheme.uiState.CrossStyle || false;
+        // fix: галка «Ромб» (#RhombusStyle). Поддержка старых схем: там режим хранился
+        //      как SnakeStyle (true = Змейка), поэтому инвертируем; нет обоих полей —
+        //      Ромб по умолчанию | 2026-10-09 | Моро
+        const rhombusEl = document.getElementById('RhombusStyle');
+        if (rhombusEl) {
+            const ui = scheme.uiState;
+            const rhombusVal = (ui.RhombusStyle !== undefined) ? !!ui.RhombusStyle
+                : (ui.SnakeStyle !== undefined ? !ui.SnakeStyle : true);
+            rhombusEl.checked = rhombusVal;
+        }
+        // БЫЛО:
+        // const snakeEl = document.getElementById('SnakeStyle');
+        // if (snakeEl) snakeEl.checked = scheme.uiState.SnakeStyle !== false;
+        // fix: восстановление новых опций; галок может не быть в устаревшем кэше HTML | 2026-10-09 | Моро
+        const evenEl = document.getElementById('EvenRowStyle');
+        if (evenEl) evenEl.checked = scheme.uiState.EvenRowStyle === true;
+        const autoEl = document.getElementById('AutoBalance');
+        if (autoEl) autoEl.checked = scheme.uiState.AutoBalance === true;
     }
     
     // 5. Обновляем интерфейс
