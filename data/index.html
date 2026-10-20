@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!--
+    fix: закрыт листинг каталога data/ (nginx autoindex отдавал список всех схем) | 2026-10-05 | Моро
+    Прямой доступ к файлам data/*.json НЕ ограничивается — приложение читает их через fetch(),
+    а схемы и так доступны любому в локальной сети. Блокируется только оглавление каталога.
+-->
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>optimys/data</title>
+    <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+    <p>Листинг каталога отключён. Файлы схем доступны по прямому адресу.</p>
+</body>
+</html>
