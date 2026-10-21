@@ -1,199 +1,914 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta http-equiv="content-type" content="text/html; charset=utf-8">
-<meta http-equiv="Cache-Control" content="no-cache">
-<link href="./style.css" rel="stylesheet" type="text/css" />
-<title>Оптимус v25 - Оптимизация размещения рулонов - СЦР Сегежа</title>
-<meta name="author" content="Болотов Андрей Александрович">
-<meta name="description" content="Обновления:
-1. тип ТС Контейнер
-2. Гексагональная, жадная упаковка вокруг динамического центра dim
-3. 3D визуализация
-4. 2D визуализация
-5. Упоры как переворачивание стопки (опускания для последних при расстановке рулонов верхнего ряда)
-6. Настроить перестановку рулонов для минимизации дисбаланса
-6.1 Уточнить деление на половинки по части рулона не линейно, а пропорционально пложщди сегмента круга, а значит деление веса точнее
-6.2 Адаптация для разных даметров, стопки только одного диаметра
-6.3 Обший вес и дисбаланс веса считает правильно 
-7.1 Хранение указанных пользователем данных и восстановление их при отрытии 
-7.2 Интерактивный сдвиг позиции рулона в схеме вида сверху
-7.3 Разноцветные группы рулонов
-7.4 Интерактивный сдвиг позиции рулона в 3D схеме
-7.5 сдвиг всех позиций продольно (X) ползунком влево и вправо до лини отступа от дверей 
-8.1 Shift+сдвиг всех правее
-8.2 централизация нечетного крайнего в верхнем ряду рулона для лучшего баланса по ширине
-8.3 разные диаметры в одно ТС
-8.4 варианты позиций ранее расчитанных для перетаскивания
-8.5 случайные наборы рулонов
-9.1 случайный выбор вариантов ветвления с закреплением для следующих рядов для симметрии расположения
-9.2 Ctrl+сдвиг всей стопки
-9.3 ветвление расстановки рулона в ширину (два касания рулона+стенки или рулон+рулон как точки ветвления и набора вариантов для последующей минимизации дисбаланса)
-9.4 перенос на рулон
-9.5 итог веса и цвета набора
-10.1 сохранять, скачивать, загружать Схемы и восстанавливать из нее все параметры
-10.2 печатная форма
-11	 типы ТС (Авто, Вагон)
-12	 планирование схем размещения на цепочку ТС (контейнерный поезд), по списку наборов груза и списку ТС, формировать оптимальное деление груза по ТС
-12.5 правки интерфейса и кода
-12.6 размещение лишнего груза не рядом а в след. ТС
-12.7 центровать и с нижнего слоя на верхний
-12.8 оптимизация сложных составов ТС
-12.9 Перенос рулолна из ТС в ТС
-14 рулоны с id показать только от первого ТС в групе одинаковых схем (ручное изменение для всех ТС из группы)
-15 автосохранение и автозагрузка схем
-16 импорт из таблиц
-17 вариант размещения ворот ТС, как у вагона, посередине
-18 проверить упор рулонов от двери до стены
-19 опция выравнивнаия, после Альт+свиг мышкой справа от него и до двери престроить рулоны
-+ по Альт.переносе мозможно нарушение об.контейнера при в формировании поз. при малом радиусе, лечится перключением типа ТС, разобраться!!! до двери меняется по Альт! 
-+ не стало перносить между контейнерами!
-+ Двойной клик - прилипание рулона к соседям
-20 перетаскивание мышью в 1D и 2D !
-23 ИБ 
-24 Модель укладки: плотный «Ромб», отключённый зажим в ромбе, пересчёт при переключении.
-25 «Ромб» (вкл = Ромб, по умолчанию вкл) и «Чётный» (вкл = широкий первый ряд 2-1-2-1) перенесены в панель рядом с «Плотно»; добавлены «Авто» (автосдвиг под минимум дисбаланса).
-"> 
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colorist v5</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  background: #0a3d1c;
+  color: #f2fff6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 28px 20px;
+}
+body::before {
+  content: '';
+  position: fixed; inset: -25%; z-index: -1;
+  background:
+    radial-gradient(700px at 22% 25%, rgba(150,255,200,0.4), transparent 60%),
+    radial-gradient(800px at 80% 75%, rgba(85,225,145,0.35), transparent 60%),
+    radial-gradient(600px at 55% 110%, rgba(30,170,95,0.5), transparent 55%),
+    linear-gradient(135deg, #082f16 0%, #0b4d23 45%, #0e5a2c 100%);
+  animation: bgMove 20s ease-in-out infinite alternate;
+}
+@keyframes bgMove {
+  from { transform: translate(-2%, -2%) rotate(-2deg); }
+  to { transform: translate(2%, 2%) rotate(2deg); }
+}
+h1 {
+  margin-bottom: 18px; font-size: 1.4em; font-weight: 700; letter-spacing: .5px;
+  background: linear-gradient(90deg, #eafff2, #6ef79c);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.controls {
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center; justify-content: center; margin-bottom: 12px;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(150,255,200,0.18);
+  border-radius: 12px; padding: 6px 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+.grp {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px;
+  background: rgba(0,0,0,0.18); border: 1px solid rgba(150,255,200,0.13); border-radius: 9px;
+}
+.lbl {
+  font-size: 0.64em; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  color: #9fe6bd; white-space: nowrap;
+}
+.sep { font-size: 0.74em; color: #9db8ad; }
+.controls label { font-size: 0.78em; color: #cfc9ef; }
+.controls input[type="number"] {
+  width: 42px; padding: 3px 2px; border-radius: 6px; font-size: 0.74em;
+  border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff; text-align: center;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.controls input[type="number"]:focus { border-color: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); }
+.color-picker-wrap { display: flex; align-items: center; gap: 5px; }
+.color-picker-wrap input[type="color"] { width: 30px; height: 26px; border: none; cursor: pointer; background: none; padding: 0; }
+.color-picker-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+.color-picker-wrap input[type="color"]::-webkit-color-swatch { border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); }
+.slot-wrap { display: flex; align-items: center; gap: 5px; }
+[hidden] { display: none !important; }
+.slot-wrap input[type="number"] { width: 40px; }
+button {
+  padding: 4px 9px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.74em; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  color: #fff; background: linear-gradient(135deg, #34d399 0%, #22c55e 60%, #16a34a 100%);
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.35);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+button:active { transform: translateY(0) scale(0.97); }
+button.sec {
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: none; color: #e8e4ff;
+}
+button.sec:hover { background: rgba(255,255,255,0.16); }
+button svg { pointer-events: none; }
+button:disabled { opacity: 0.4; cursor: default; transform: none !important; filter: none !important; box-shadow: none !important; }
+button.on {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #2a1a00; box-shadow: 0 6px 16px rgba(245,158,11,0.4);
+}
+button.on:hover { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); filter: brightness(1.08); }
+canvas {
+  background: #000;
+  border: 1px solid rgba(150,255,200,0.22); border-radius: 18px; cursor: pointer; touch-action: none; max-width: 100%;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+}
+.stats {
+  display: flex; flex-direction: column; gap: 6px;
+  flex-basis: 100%; margin-top: 3px; padding-top: 6px;
+  border-top: 1px dashed rgba(150,255,200,0.16);
+}
+.draw-bar {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+}
+.stats-chips {
+  display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
+}
+.bg-wrap { gap: 6px; }
+.bg-wrap .swatch { width: 16px; height: 16px; border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.5); }
+.bg-wrap input[type="range"] {
+  width: 90px; height: 16px; cursor: pointer; accent-color: #4ade80;
+  background: linear-gradient(90deg, #000 0%, #fff 100%); border-radius: 8px;
+  -webkit-appearance: none; appearance: none; border: 1px solid rgba(255,255,255,0.25);
+}
+.bg-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: #f2fff6; border: 2px solid #16a34a; box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.bg-wrap input[type="range"]::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; background: #f2fff6; border: 2px solid #16a34a;
+}
+.stat-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  padding: 3px 9px; border-radius: 13px; font-size: 0.74em; color: #e8e4ff;
+}
+.stat-chip.clickable { cursor: pointer; transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease; }
+.stat-chip.clickable:hover { transform: translateY(-1px); border-color: rgba(150,255,200,0.5); background: rgba(255,255,255,0.13); }
+.stat-chip.sel { border-color: #4ade80; box-shadow: 0 0 0 2px rgba(74,222,128,0.45); }
+.swatch { display: inline-block; width: 13px; height: 13px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.35); }
+.slot-wrap input[type="text"] {
+  width: 120px; padding: 3px 6px; border-radius: 6px; font-size: 0.74em;
+  border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff;
+  outline: none; transition: border-color .2s, box-shadow .2s;
+}
+.slot-wrap input[type="text"]:focus { border-color: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); }
+.slot-wrap select {
+  padding: 3px 6px; border-radius: 6px; font-size: 0.74em; max-width: 210px;
+  border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: #fff; outline: none;
+}
+.slot-wrap select[hidden] { display: none; }
+.slot-wrap select:focus { border-color: #4ade80; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); }
+.slot-wrap select option { background: #0b4d23; color: #fff; }
+.slot-wrap select option:disabled { color: #7f9c8b; }
+.modes {
+  display: inline-flex; gap: 3px; padding: 3px; border-radius: 10px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+}
+.mode-btn {
+  padding: 4px 9px; font-size: 0.74em; border-radius: 8px;
+  background: transparent; color: #cfc9ef; box-shadow: none;
+}
+.mode-btn:hover { background: rgba(255,255,255,0.14); transform: none; filter: none; }
+.mode-btn:active { transform: scale(0.97); }
+.mode-btn.active {
+  background: linear-gradient(135deg, #34d399 0%, #16a34a 100%);
+  color: #fff; box-shadow: 0 4px 12px rgba(34,197,94,0.35);
+}
+</style>
 </head>
-<body id="body" >
-	<div id="train-view" >
-		<div id="train-controls">
-<button id="save-scheme"		title="Сохранить схему на сервер...">⤓</button><button id="load-from-server"	title="Загрузить схему с сервера...">↥</button>
-<button id="prev-container"		title="Предыдущий...">‹</button><span	id="current-container-info">ТС 1/1</span><button id="next-container" title="Следующий...">›</button>
-<button id="add-container"		title="Добавить еще ТС...">+</button><button id="remove-container"	title="Удалить ТС!">-</button>
-			<div class="container-metrics" id="train-info" >
-			</div>
-		</div>	
-	</div>
-	<div id="train-overview" >
-		<svg id="train-svg" width="1980" height="25"></svg>
-	</div>
-    <div id="train-list-view" class="panel1D">
-		<div id="views-container-list"></div>
-    </div>
-    <div id="panel2D" class="panel2D">
-		<div id="views-container"></div>
-    </div>
-    <div id="container-settings">
-		<div class="setting-row">
-			<button id="print-1d"		title="вид на список ТС"			>ТС</button>
-			<button id="print-2d"		title="переключить на плоский вид"	>2D</button>
-			<button id="print-3d"		title="переключить на объёмный вид"	>3D</button>
-			<button id="print-Train" 	title="Печать схемы">🖶</button>
-			<button id="update-container" title="изменить загрузку для новых параметров ТСа">⇒</button>
-			<button id="more-optimize"	title="продолжить оптимизацию">...</button>
-		</div>
-		<div class="setting-row">
-			<label>ТС тип:
-				<select id="ts-type" onchange="loadTsParams()">
-					<option value="Свой">Свой</option>
-				</select>
-			</label>
-		</div>
-		<div class="setting-row">			
-            <label>макс.вес груза:<input 			id="maxW"		value="25500"	min="1000"	max="99000"	step="100"	type="number" name="container-maxW"> кг</label>
-            <label><input name="container-H" 		id="H"			value="259"		min="200"	max="300"	step="1"	type="number" > см высота</label>
-        </div>
-		<div class="setting-row">			
-            <label><input name="container-L"		id="L"			value="1203"	min="3000"	max="2000"	step="1"	type="number" > см длина</label>
-        </div>
-		<div class="setting-row"> допуск:			
-            <label><input name="container-maxCML"	id="maxCML"		value="30"		min="1"		max="100"	step="1" 	type="number" > см	</label>
-            <label><input name="container-maxKGL"	id="maxKGL"		value="1500"	min="1"		max="5000"	step="10"	type="number" > кг	</label>
-		</div>
-		<div class="setting-row">			
-            <label><input name="container-T"		id="T"			value="235"		min="100"	max="300"	step="1"	type="number" > см ширина</label>
-        </div>
-		<div class="setting-row"> допуск:			
-            <label><input name="container-maxCMT"	id="maxCMT" 	value="10"		min="1"		max="100"	step="1"	type="number" > см	</label>
-            <label><input name="container-maxKGT"	id="maxKGT" 	value="500"		min="1"		max="2000"	step="10"	type="number" > кг	</label>
-		</div>
-        <div class="setting-row">
-			<label><input name="container-minCMDoor"id="minCMDoor"	value="50"		min="0"		max="100"	step="10"	type="number" > см от двери</label>
-			<label><input name="container-minDimX"	id="minDimX"	value="25"		min="-300"	max="1000"	step="10"	type="number" > см к двери	</label>
-		</div>
-    </div>
-    <div id="info-panel">
-        <span>Информация о схеме (см)</span>
-        <div class="metric">Длина(X):<span id="container-L"></span></div>
-        <div class="metric">Ширина(Y):<span id="container-T"></span></div>
-        <div class="metric">Высота(Z):<span id="container-H"></span></div>
-        <div class="metric">Вес: <span id="container-W"></span></div>
-        <div class="metric">Центр ТСа(см):
-            <div>X: <span id="container-center-x"></span></div>
-            <div>Y: <span id="container-center-y"></span></div>
-            <div>Z: <span id="container-center-z"></span></div>
-        </div>
-        <div class="metric">Центр масс груза(см):
-            <div>X: <span id="mass-center-x"></span></div>
-            <div>Y: <span id="mass-center-y"></span></div>
-            <div>Z: <span id="mass-center-z"></span></div>
-        </div>
-		<div class="slider-container">
-			cвободный перенос<input name="FreeStyle" id="FreeStyle" checked value="1" title="перемещения рулона без привязки к расч. позиции..." type="checkbox"><br />
-			плотно<input name="CrossStyle" id="CrossStyle" value="1" title="при мин.D < 94 лучше ставить более плотно" type="checkbox">
-			ромб<input name="RhombusStyle" id="RhombusStyle" checked value="1" title="Вкл: укладка Ромбом (плотная, ряды в гнёзда). Выкл: укладка Змейкой" type="checkbox">
-			чёт.<input name="EvenRowStyle" id="EvenRowStyle" value="1" title="Только для ромба: чётный первый ряд широкий (2-1-2-1). Без галки первым идёт узкий ряд (1-2-1-2)" type="checkbox">
-			<div>
-				авто<input name="AutoBalance" id="AutoBalance"  checked value="1" title="Автоматически подбирает сдвиг вдоль ТС для минимума дисбаланса груза по длине" type="checkbox">
-				сдвиг:<span id="slider-value" pos=3 >0</span>
-				<input type="range" id="rolls-slider" min="-500" max="500" value="0" step="1">
-			</div>
-        </div>
-		<div class="metric">
-			Дисбаланс (допуск)<br>
-            <div id="deviation-x1" class="deviation">см по длине :	<span></span> (<span></span>) </div>
-            <div id="deviation-xW" class="deviation">кг кон.-нач.:	<span></span> (<span></span>) </div>
-            <div id="deviation-y1" class="deviation">см по ширине:	<span></span> (<span></span>)</div>
-            <div id="deviation-yW" class="deviation">кг лев.-пр. :	<span></span> (<span></span>)</div>
-        </div>
-		<div class="metric">Расстояние до дверей: <span id="door-distance"></span> см</div>
-        <div class="metric">Размещено: <span id="placed-count"></span></div>
-        <div class="metric">Не размещено: <span id="unplaced-count"></span></div>
-		<div id="error-panel">
-			<div id="error-list"></div>
+<body>
+<div class="controls">
+  <button id="undoBtn" class="sec" title="Отменить последнее действие (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
+  <select id="slotSelect" hidden title="Список слотов с названиями"></select>
+  <div class="grp slot-wrap" id="slotWrap">
+    <button id="pngBtn" class="sec" title="Скачать схему в PNG"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
+    <button id="loadBtn" class="sec" title="Загрузить из слота">Схемы</button>
+    <span class="lbl">№</span>
+    <input type="number" id="slotInput" value="1" min="1" max="999">
+    <input type="text" id="nameInput" placeholder="Название схемы" maxlength="40">
+    <button id="saveBtn" title="Сохранить в слот"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+  </div>
+  <div class="grp slot-wrap">
+	  <div class="grp" title="Сетка: столбцов × чётных рядов">
+		<span class="lbl">Сетка</span>
+		<input type="number" id="widthInput" value="8" min="1" max="50" title="Столбцов в ряду">
+		<span class="sep">×</span>
+		<input type="number" id="heightInput" value="11" min="1" max="24" title="Чётных (нумерованных) рядов">
+	  </div>
+	  <div class="grp" title="Внутренний/внешний диаметр бусины и шаг между центрами">
+		<span class="lbl">@</span>
+		<input type="number" id="innerInput" value="16" min="0" max="80" title="Внутренний диаметр цвета">
+		<span class="sep">/</span>
+		<input type="number" id="diamInput" value="22" min="4" max="80" title="Внешний диаметр">
+		<span class="lbl">%</span>
+		<input type="number" id="centresInput" value="30" min="4" max="120" title="Между центрами">
+	  </div>
+	  <button id="applyBtn" title="Применить"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+  </div>
+  <div class="stats" id="stats" title="Клик по цвету — выбрать его для рисования, ПКМ по бусине — взять цвет с бусины">
+	<div class="stats-chips">
+		<div class="draw-bar">
+		  <div class="grp color-picker-wrap">
+		    <div id="statsChips"></div>
+			<span class="lbl">Цвет</span>
+			<input type="color" id="colorPicker" value="#ffffff">
+			<button id="dropBtn" class="sec" title="Пипетка: брать цвет с бусины вместо рисования (клавиша C)"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></button>
+			<button id="clearBtn" class="sec" title="Закрасить все"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 13 8 17 15 8"/><polyline points="11 16 15 20 22 11"/></svg></button>
+		  </div>
+		  <div class="modes" id="modes" title="Что закрашивать одним кликом (альтернатива Shift — в ширину / Alt — в высоту)">
+			<button type="button" class="mode-btn active" data-mode="bead">+️</button>
+			<button type="button" class="mode-btn" data-mode="row">—</button>
+			<button type="button" class="mode-btn" data-mode="col">❙</button>
+			<button type="button" class="mode-btn" data-mode="dUp">/</button>
+			<button type="button" class="mode-btn" data-mode="dDn">\</button>
+		  </div>
+		  <div class="grp bg-wrap" title="Цвет подложки: клик по пустому месту холста переключает чёрный/белый, ползунок — оттенок серого">
+			<span class="lbl">Фон</span>
+			<span class="swatch" id="bgSwatch"></span>
+			<input type="range" id="bgSlider" min="0" max="255" value="0" title="Оттенок серого: 0 — чёрный, 255 — белый">
+		  </div>
 		</div>
 	</div>
-	<div id="rolls-settings">
-		<button id="generate-rolls"  	title="Погрузка данного набора рулонов...">⇐</button>
-		<button id="download-scheme"	title="Скачать схему загрузки"	>⇓</button>
-		<button id="load-scheme"		title="Загрузить схему"			>⇑</button>
-		<input id="scheme-file"		type="file"  accept=".json" style="display: none;">
-		<button id="excel"	onclick="document.getElementById('excel-import').click()" class="btn" title="Загрузить рулоны из таблицы Эксель">📊</button>
-		<input id="excel-import"	type="file" accept=".xlsx,.xls" style="display: none;">
-		<button id="print-scheme"	title="Печать схемы">🖶</button>
-		<button class="add-roll-set" id="random-rolls"  title="Заменить на случайные наборы рулонов...">🎲</button>
-		<br>
-		<span>
-			Груз вес: <span id="rolls-W" class="colorW"></span>
-			<button class="add-roll-set" id="add-roll-set" title="Добавить копию верхнего набора...">+</button>
-		</span>
-	</div>
-    <div id="controls">
-        <div>
-			Мышь:колесо-3D масштаб<br/>
-			ЛК-вращение, сдвиг рулона<br/>
-			Shift+сдвиг стопки<br/>
-			Ctrl+сдвиг всех правее<br/>
-			Alt+перенос всех правее<br/>
-			Дв.клик - прилипание
-			
-		</div>
-    </div>
-    <div id="copyr">
-		Оптимус v <a href="index.html">α</a>, <a href="index.htm">β</a> - Оптимизация размещения рулонов - &copy;2026 SG СЦР г.Сегежа 
-    </div>
-	<div id="scheme-modal">
-		<div>
-			<h3>Выберите схему для загрузки</h3>
-			<div id="scheme-list" ></div>
-			<button id="close-modal" >Закрыть</button>
-		</div>
-	</div>
-<script src="./xlsx.full.min.js"></script> <!-- Подключаем библиотеку SheetJS (xlsx) в HTML -->
-<script src="./lib.min.js"></script>
-<script src="./models.js"></script>
-<script src="./controllers.js"></script>
-<script src="./views.js"></script>
+  </div>
+</div>
+<canvas id="canvas"></canvas>
+<h1>Colorist v5 © Mоrоsоft   - Схема для Кисяни</h1> 
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const widthInput = document.getElementById('widthInput');
+const heightInput = document.getElementById('heightInput');
+const diamInput = document.getElementById('diamInput');
+const centresInput = document.getElementById('centresInput');
+const innerInput = document.getElementById('innerInput');
+const colorPicker = document.getElementById('colorPicker');
+const slotInput = document.getElementById('slotInput');
+const nameInput = document.getElementById('nameInput');
+const slotSelect = document.getElementById('slotSelect');
+const slotWrap = document.getElementById('slotWrap');
+const applyBtn = document.getElementById('applyBtn');
+const saveBtn = document.getElementById('saveBtn');
+const loadBtn = document.getElementById('loadBtn');
+const clearBtn = document.getElementById('clearBtn');
+const statsEl = document.getElementById('stats');
+const statsChips = document.getElementById('statsChips');
+const bgSlider = document.getElementById('bgSlider');
+const bgSwatch = document.getElementById('bgSwatch');
+const undoBtn = document.getElementById('undoBtn');
+const dropBtn = document.getElementById('dropBtn');
+const pngBtn = document.getElementById('pngBtn');
+
+let cols = 8, rows = 23;
+let beadD = 22;
+let centreD = 30;
+let innerD = 16;
+const MARGIN = 8;
+const LABEL_W = 22;
+const LABEL_H = 20;
+let beadR = 11;
+let P = 30;
+let V = 15;
+let ORIGIN_X = LABEL_W + MARGIN + beadR + P / 2;
+let grid = [];
+const DEFAULT_COLOR = '#ffffff';
+let currentColor = '#ffffff';
+let bgColor = '#000000';
+let eyedropper = false;
+let hover = null;
+let draftTimer = null;
+const HISTORY_MAX = 20;
+const history = [];
+
+function beadCount(r) { return (r % 2 === 1) ? cols + 1 : cols; }
+function rowBase(r) { return (r % 2 === 1) ? -P / 2 : 0; }
+function beadX(r, i) { return ORIGIN_X + rowBase(r) + i * P; }
+function beadY(r) { return LABEL_H + MARGIN + beadR + r * V; }
+function recalc() {
+  beadR = beadD / 2;
+  P = centreD;
+  V = centreD / 2;
+  ORIGIN_X = LABEL_W + MARGIN + beadR + P / 2;
+}
+
+function initGrid() {
+  grid = [];
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (let c = 0; c < beadCount(r); c++) {
+      grid[r][c] = DEFAULT_COLOR;
+    }
+  }
+}
+
+function slotOrientation(r) {
+  return (r % 2 === 0) ? 'horizontal' : 'vertical';
+}
+
+function resizeCanvas() {
+  const w = LABEL_W + cols * P + 2 * (beadR + MARGIN);
+  const h = LABEL_H + (rows - 1) * V + 2 * (beadR + MARGIN);
+  const maxW = window.innerWidth - 40;
+  const scale = maxW < w ? maxW / w : 1;
+  const sw = Math.floor(w * scale);
+  const sh = Math.floor(h * scale);
+  if (canvas.width !== w || canvas.height !== h ||
+      canvas.style.width !== sw + 'px' || canvas.style.height !== sh + 'px') {
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = sw + 'px';
+    canvas.style.height = sh + 'px';
+    draw();
+  }
+}
+
+function draw() {
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let r = 0; r < rows; r++) {
+    const n = beadCount(r);
+    const cy = beadY(r);
+    for (let c = 0; c < n; c++) {
+      const cx = beadX(r, c);
+      const color = grid[r][c];
+      const orient = slotOrientation(r);
+      const innerR = Math.max(0, Math.min(innerD / 2, beadR));
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, beadR, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fill();
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (innerR > 0) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 2;
+      if (orient === 'horizontal') {
+        ctx.moveTo(cx - beadR + 3, cy);
+        ctx.lineTo(cx + beadR - 3, cy);
+      } else {
+        ctx.moveTo(cx, cy - beadR + 3);
+        ctx.lineTo(cx, cy + beadR - 3);
+      }
+      ctx.stroke();
+    }
+  }
+  drawHighlight();
+  drawLabels();
+  renderStats();
+  scheduleDraftSave();
+}
+
+function drawHighlight() {
+  if (!hover || hover.r >= rows || hover.c >= beadCount(hover.r)) return;
+  const x = beadX(hover.r, hover.c);
+  const y = beadY(hover.r);
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillRect(0, y - beadR, canvas.width, beadR * 2);
+  ctx.fillStyle = 'rgba(110,247,156,0.10)';
+  ctx.fillRect(x - beadR, 0, beadR * 2, canvas.height);
+}
+
+function bgLuminance() {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(bgColor);
+  if (!m) return 0;
+  return Math.round(0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16));
+}
+
+function labelColors() {
+  const dark = bgLuminance() >= 128;
+  return dark ? { base: '#14351f', hl: '#000000' } : { base: '#c6f0d2', hl: '#ffffff' };
+}
+
+function drawLabels() {
+  ctx.font = '11px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const lc = labelColors();
+  let hlRow = -1, hlCol = -1;
+  if (hover && hover.r < rows) {
+    const lr = (hover.r % 2 === 1) ? hover.r : hover.r + 1;
+    const lbl = Math.floor(lr / 2) + 1;
+    if (lbl <= rowsToInput(rows)) hlRow = lbl;
+    if (hover.c + 1 <= cols) hlCol = hover.c + 1;
+  }
+  for (let r = 1; r < rows; r += 2) {
+    const n = Math.floor(r / 2) + 1;
+    const hl = n === hlRow;
+    ctx.fillStyle = hl ? lc.hl : lc.base;
+    ctx.font = hl ? 'bold 12px "Segoe UI", Arial, sans-serif' : '11px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(String(n), LABEL_W / 2, beadY(r));
+  }
+  for (let c = 0; c < cols; c++) {
+    const n = c + 1;
+    const hl = n === hlCol;
+    ctx.fillStyle = hl ? lc.hl : lc.base;
+    ctx.font = hl ? 'bold 12px "Segoe UI", Arial, sans-serif' : '11px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(String(n), beadX(0, c), LABEL_H / 2);
+  }
+}
+
+function renderStats() {
+  const counts = {};
+  let total = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      const color = grid[r][c];
+      counts[color] = (counts[color] || 0) + 1;
+      total++;
+    }
+  }
+  const sorted = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  statsChips.textContent = '';
+  const totalSpan = document.createElement('span');
+  totalSpan.className = 'stat-chip';
+  totalSpan.textContent = 'Всего: ' + total;
+  statsChips.appendChild(totalSpan);
+  sorted.forEach((color) => {
+    const chip = document.createElement('span');
+    chip.className = 'stat-chip clickable' + (color === currentColor ? ' sel' : '');
+    chip.title = color + ' (' + counts[color] + ') — выбрать этот цвет';
+    const sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = color;
+    chip.appendChild(sw);
+    chip.appendChild(document.createTextNode(String(counts[color])));
+    chip.addEventListener('click', () => {
+      currentColor = color;
+      colorPicker.value = color;
+      draw();
+    });
+    statsChips.appendChild(chip);
+  });
+}
+
+function getBeadAt(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (clientX - rect.left) * scaleX;
+  const my = (clientY - rect.top) * scaleY;
+  return beadAtPoint(mx, my);
+}
+
+function beadAtPoint(mx, my) {
+  for (let r = 0; r < rows; r++) {
+    const n = beadCount(r);
+    const cy = beadY(r);
+    for (let c = 0; c < n; c++) {
+      const cx = beadX(r, c);
+      const dx = mx - cx, dy = my - cy;
+      if (dx * dx + dy * dy <= beadR * beadR) return { r, c };
+    }
+  }
+  return null;
+}
+
+function paintDiagonal(b, stepX, stepY) {
+  grid[b.r][b.c] = currentColor;
+  [1, -1].forEach((dir) => {
+    let x = beadX(b.r, b.c) + stepX * dir;
+    let y = beadY(b.r) + stepY * dir;
+    let nxt = beadAtPoint(x, y);
+    while (nxt) {
+      grid[nxt.r][nxt.c] = currentColor;
+      x += stepX * dir;
+      y += stepY * dir;
+      nxt = beadAtPoint(x, y);
+    }
+  });
+}
+
+function pickColorAt(b) {
+  currentColor = grid[b.r][b.c];
+  colorPicker.value = currentColor;
+  draw();
+}
+
+function pointOnGutter(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (clientX - rect.left) * scaleX;
+  const my = (clientY - rect.top) * scaleY;
+  const leftEdge = ORIGIN_X - beadR;
+  const topEdge = beadY(0) - beadR;
+  return mx < LABEL_W || my < LABEL_H || mx < leftEdge || my < topEdge;
+}
+
+function paintBead(e, start) {
+  e.preventDefault();
+  const touch = e.touches ? e.touches[0] : e;
+  const b = getBeadAt(touch.clientX, touch.clientY);
+  if (!b) {
+    if (start && !eyedropper && pointOnGutter(touch.clientX, touch.clientY)) toggleBg();
+    return;
+  }
+  hover = b;
+  if (eyedropper || (e.ctrlKey && !e.touches)) { pickColorAt(b); return; }
+  if (start) pushUndo();
+  let mode = clickMode;
+  if (e.shiftKey) mode = 'row';
+  else if (e.altKey) mode = 'col';
+  if (mode === 'row') {
+    for (let c = 0; c < grid[b.r].length; c++) grid[b.r][c] = currentColor;
+  } else if (mode === 'col') {
+    for (let r = b.r % 2; r < rows; r += 2) {
+      if (b.c < grid[r].length) grid[r][b.c] = currentColor;
+    }
+  } else if (mode === 'dUp') {
+    paintDiagonal(b, P / 2, -V);
+  } else if (mode === 'dDn') {
+    paintDiagonal(b, P / 2, V);
+  } else {
+    grid[b.r][b.c] = currentColor;
+  }
+  draw();
+}
+
+function cookieName(n) { return 'beads_s' + n; }
+function storageKey(n) { return 'beads_slot_' + n; }
+const lastSlotKey = 'beads_last';
+const draftKey = 'beads_draft';
+
+function snapshot() {
+  return {
+    cols: cols, rows: rows, diam: beadD, cen: centreD, inner: innerD,
+    grid: grid.map((r) => r.slice()), color: currentColor, name: nameInput.value, bg: bgColor
+  };
+}
+
+function pushUndo() {
+  history.push(snapshot());
+  if (history.length > HISTORY_MAX) history.shift();
+  updateUndoBtn();
+}
+
+function undo() {
+  const s = history.pop();
+  if (!s) return;
+  hover = null;
+  applyData(s);
+  resizeCanvas();
+  draw();
+  updateUndoBtn();
+}
+
+function updateUndoBtn() {
+  undoBtn.disabled = history.length === 0;
+}
+
+function scheduleDraftSave() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 800);
+}
+
+function saveDraft() {
+  try { localStorage.setItem(draftKey, JSON.stringify(snapshot())); } catch (e) {}
+}
+
+function rememberLast(n) {
+  try { localStorage.setItem(lastSlotKey, String(n)); } catch (e) {}
+  try { document.cookie = lastSlotKey + '=' + n + ';max-age=31536000;path=/'; } catch (e) {}
+}
+
+function applyData(data) {
+  cols = data.cols;
+  rows = data.rows;
+  grid = data.grid;
+  currentColor = data.color;
+  if (typeof data.diam === 'number') { beadD = data.diam; }
+  if (typeof data.cen === 'number') { centreD = data.cen; }
+  if (typeof data.inner === 'number') { innerD = data.inner; }
+  recalc();
+  widthInput.value = cols;
+  heightInput.value = rowsToInput(rows);
+  diamInput.value = beadD;
+  centresInput.value = centreD;
+  innerInput.value = innerD;
+  colorPicker.value = currentColor;
+  nameInput.value = data.name || '';
+  if (typeof data.bg === 'string') { setBg(data.bg); }
+}
+
+function saveSlot(n, name) {
+  const data = { cols, rows, diam: beadD, cen: centreD, inner: innerD, grid, color: currentColor, name: name, bg: bgColor };
+  const s = JSON.stringify(data);
+  let stored = false;
+  try { localStorage.setItem(storageKey(n), s); stored = true; } catch (e) {}
+  try {
+    document.cookie = cookieName(n) + '=' + encodeURIComponent(s) + ';max-age=31536000;path=/';
+    const m = document.cookie.match(new RegExp(cookieName(n) + '=([^;]+)'));
+    if (m && decodeURIComponent(m[1]) === s) stored = true;
+  } catch (e) {}
+  return stored;
+}
+
+function loadSlot(n) {
+  let s = null;
+  try { s = localStorage.getItem(storageKey(n)); } catch (e) {}
+  if (!s) {
+    const m = document.cookie.match(new RegExp(cookieName(n) + '=([^;]+)'));
+    if (m) { try { s = decodeURIComponent(m[1]); } catch (e) {} }
+  }
+  if (!s) return null;
+  try {
+    return JSON.parse(s);
+  } catch (e) { return null; }
+}
+
+function listSavedSlots() {
+  const nums = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const m = k && k.match(/^beads_slot_(\d+)$/);
+      if (m) nums[m[1]] = true;
+    }
+  } catch (e) {}
+  const ck = document.cookie ? document.cookie.split(';') : [];
+  for (let i = 0; i < ck.length; i++) {
+    const m = ck[i].trim().match(/^beads_s(\d+)=/);
+    if (m) nums[m[1]] = true;
+  }
+  const list = [];
+  for (const n in nums) {
+    if (parseInt(n, 10) > 0 && loadSlot(n)) list.push(parseInt(n, 10));
+  }
+  list.sort((a, b) => a - b);
+  return list;
+}
+
+let painting = false;
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  painting = true;
+  paintBead(e, true);
+});
+canvas.addEventListener('mousemove', (e) => {
+  const b = getBeadAt(e.clientX, e.clientY);
+  const changed = (b && (!hover || b.r !== hover.r || b.c !== hover.c)) || (!b && hover);
+  if (changed) { hover = b; draw(); }
+  if (painting) paintBead(e, false);
+});
+canvas.addEventListener('mouseup', () => painting = false);
+canvas.addEventListener('mouseleave', () => {
+  painting = false;
+  if (hover) { hover = null; draw(); }
+});
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const b = getBeadAt(e.clientX, e.clientY);
+  if (b) pickColorAt(b);
+});
+canvas.addEventListener('touchstart', (e) => { painting = true; paintBead(e, true); }, { passive: false });
+canvas.addEventListener('touchmove', (e) => {
+  if (painting) {
+    const touch = e.touches[0];
+    const b = getBeadAt(touch.clientX, touch.clientY);
+    if (b) hover = b;
+    paintBead(e, false);
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', () => painting = false);
+
+colorPicker.addEventListener('input', () => { currentColor = colorPicker.value; });
+
+let clickMode = 'bead';
+const modeButtons = document.querySelectorAll('.mode-btn');
+function setMode(m) {
+  clickMode = m;
+  modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === m));
+}
+modeButtons.forEach((btn) => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+function setEyedropper(on) {
+  eyedropper = on;
+  dropBtn.classList.toggle('on', on);
+  canvas.style.cursor = on ? 'crosshair' : '';
+}
+dropBtn.addEventListener('click', () => setEyedropper(!eyedropper));
+
+function setBg(color) {
+  bgColor = color;
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
+  if (m) {
+    const lum = Math.round(0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16));
+    bgSlider.value = lum;
+  }
+  bgSwatch.style.background = bgColor;
+  draw();
+}
+
+function toggleBg() {
+  const lum = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(bgColor);
+  let cur = 0;
+  if (lum) cur = Math.round(0.299 * parseInt(lum[1], 16) + 0.587 * parseInt(lum[2], 16) + 0.114 * parseInt(lum[3], 16));
+  setBg(cur >= 128 ? '#000000' : '#ffffff');
+}
+
+bgSlider.addEventListener('input', () => {
+  const v = parseInt(bgSlider.value, 10) || 0;
+  const c = v.toString(16).padStart(2, '0');
+  setBg('#' + c + c + c);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  const tag = e.target ? e.target.tagName : '';
+  const inField = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+  if (e.ctrlKey || e.metaKey) {
+    if (e.code === 'KeyZ' && !inField) { e.preventDefault(); undo(); }
+    return;
+  }
+  if (inField) return;
+  switch (e.code) {
+    case 'Digit1': case 'Numpad1': setMode('bead'); break;
+    case 'Digit2': case 'Numpad2': setMode('row'); break;
+    case 'Digit3': case 'Numpad3': setMode('col'); break;
+    case 'Digit4': case 'Numpad4': setMode('dUp'); break;
+    case 'Digit5': case 'Numpad5': setMode('dDn'); break;
+    case 'KeyC': setEyedropper(!eyedropper); break;
+    case 'KeyS': e.preventDefault(); saveBtn.click(); break;
+  }
+});
+
+function readInt(el, fallback, min, max) {
+  const v = parseInt(el.value, 10);
+  const n = isNaN(v) ? fallback : v;
+  return Math.max(min, Math.min(max, n));
+}
+
+function rowsToInput(r) { return Math.max(1, Math.floor((r - 1) / 2)); }
+function inputToRows(n) { return 2 * Math.max(1, n) + 1; }
+
+function gridIsPristine() {
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[r].length; c++) {
+      if (grid[r][c] !== DEFAULT_COLOR) return false;
+    }
+  }
+  return true;
+}
+
+applyBtn.addEventListener('click', () => {
+  const prevCols = cols, prevRows = rows;
+  const newCols = readInt(widthInput, cols, 1, 50);
+  const newRows = inputToRows(readInt(heightInput, rowsToInput(rows), 1, 24));
+  const newBeadD = readInt(diamInput, beadD, 4, 80);
+  const newCentreD = Math.max(Math.ceil(newBeadD * Math.SQRT2), readInt(centresInput, centreD, 4, 120));
+  const newInnerD = readInt(innerInput, innerD, 0, 80);
+  if ((newCols !== prevCols || newRows !== prevRows) && !gridIsPristine() &&
+      !confirm('Размеры сетки изменятся — текущая схема будет очищена. Продолжить?')) {
+    return;
+  }
+  pushUndo();
+  cols = newCols;
+  rows = newRows;
+  beadD = newBeadD;
+  centreD = newCentreD;
+  innerD = newInnerD;
+  widthInput.value = cols;
+  heightInput.value = rowsToInput(rows);
+  diamInput.value = beadD;
+  centresInput.value = centreD;
+  innerInput.value = innerD;
+  if (cols !== prevCols || rows !== prevRows) initGrid();
+  recalc();
+  resizeCanvas();
+  draw();
+});
+
+undoBtn.addEventListener('click', undo);
+
+saveBtn.addEventListener('click', () => {
+  const n = Math.max(1, parseInt(slotInput.value) || 1);
+  slotInput.value = n;
+  const name = nameInput.value.trim() || ('Схема ' + n);
+  nameInput.value = name;
+  if (saveSlot(n, name)) {
+    rememberLast(n);
+    try { localStorage.removeItem(draftKey); } catch (e) {}
+    if (!slotSelect.hidden) populateSlotSelect();
+    alert('Схема «' + name + '» сохранена в слот №' + n);
+  } else {
+    alert('Не удалось сохранить в слот №' + n + ': хранилище недоступно (схема слишком большая для cookie)');
+  }
+});
+
+function populateSlotSelect() {
+  slotSelect.innerHTML = '';
+  const opt0 = document.createElement('option');
+  opt0.value = '0';
+  opt0.textContent = '№0 — Начальная (по умолчанию)';
+  slotSelect.appendChild(opt0);
+  listSavedSlots().forEach((i) => {
+    const d = loadSlot(i);
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = '№' + i + ' — ' + (d.name || '(без названия)');
+    slotSelect.appendChild(opt);
+  });
+  const cur = parseInt(slotInput.value) || 1;
+  slotSelect.value = slotSelect.querySelector('option[value="' + cur + '"]') ? String(cur) : '0';
+}
+
+function loadFromSlot(n) {
+  if (n === 0) { loadDefaults(); return; }
+  const data = loadSlot(n);
+  if (!data || !data.grid) { alert('Слот №' + n + ' пуст'); return; }
+  pushUndo();
+  applyData(data);
+  slotInput.value = n;
+  rememberLast(n);
+  resizeCanvas();
+  draw();
+  alert('Загружена «' + (data.name || 'Схема ' + n) + '» из слота №' + n);
+}
+
+function loadDefaults() {
+  pushUndo();
+  cols = 8;
+  rows = 23;
+  beadD = 22;
+  centreD = 30;
+  innerD = 16;
+  currentColor = DEFAULT_COLOR;
+  recalc();
+  initGrid();
+  widthInput.value = cols;
+  heightInput.value = rowsToInput(rows);
+  diamInput.value = beadD;
+  centresInput.value = centreD;
+  innerInput.value = innerD;
+  colorPicker.value = currentColor;
+  nameInput.value = '';
+  setBg('#000000');
+  slotInput.value = 1;
+  resizeCanvas();
+  draw();
+}
+
+loadBtn.addEventListener('click', () => {
+  if (slotSelect.hidden) {
+    populateSlotSelect();
+    slotWrap.hidden = true;
+    slotSelect.hidden = false;
+    slotSelect.focus();
+  } else {
+    slotSelect.hidden = true;
+    slotWrap.hidden = false;
+  }
+});
+
+function closeSlotSelect() {
+  if (slotSelect.hidden) return;
+  slotSelect.hidden = true;
+  slotWrap.hidden = false;
+}
+
+slotSelect.addEventListener('change', () => {
+  const n = Math.max(0, parseInt(slotSelect.value) || 0);
+  closeSlotSelect();
+  loadFromSlot(n);
+});
+
+slotSelect.addEventListener('blur', closeSlotSelect);
+
+clearBtn.addEventListener('click', () => {
+  pushUndo();
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < grid[r].length; c++) grid[r][c] = currentColor;
+  }
+  draw();
+});
+
+pngBtn.addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = (nameInput.value.trim() || 'schema') + '.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('orientationchange', resizeCanvas);
+window.addEventListener('beforeunload', saveDraft);
+
+let startSlot = 1;
+try { startSlot = parseInt(localStorage.getItem(lastSlotKey)) || 1; } catch (e) {}
+if (!(startSlot >= 1)) startSlot = 1;
+const startData = loadSlot(startSlot);
+let draftData = null;
+try { draftData = JSON.parse(localStorage.getItem(draftKey)); } catch (e) {}
+
+if (draftData && draftData.grid && draftData.cols && draftData.rows && gridIsDirty(draftData)) {
+  applyData(draftData);
+  nameInput.value = draftData.name || '';
+} else if (startData && startData.grid) {
+  applyData(startData);
+  slotInput.value = startSlot;
+} else {
+  loadDefaults();
+  slotInput.value = 1;
+}
+resizeCanvas();
+setBg(bgColor);
+
+function gridIsDirty(d) {
+  for (let r = 0; r < d.grid.length; r++) {
+    for (let c = 0; c < d.grid[r].length; c++) {
+      if (d.grid[r][c] !== DEFAULT_COLOR) return true;
+    }
+  }
+  return false;
+}
+</script>
 </body>
 </html>
